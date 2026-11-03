@@ -12,7 +12,8 @@
   "dependencies": {
     "firebase": "^13.2.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
@@ -20,6 +21,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.89.0",
+    "sass": "^1.107.1",
     "typescript": "~7.0.2",
     "vite": "^8.3.5"
   }
