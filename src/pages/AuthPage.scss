@@ -1,5 +1,5 @@
 // =====================================================================
-// FEUILLE DE STYLE DÉDIÉE : PAGE D'AUTHENTIFICATION (SPLIT VIEW)
+// FEUILLE DE STYLE DÉDIÉE : PAGE D'AUTHENTIFICATION & MODALES
 // =====================================================================
 
 @use "../styles/variables" as *;
@@ -101,72 +101,111 @@
   }
 }
 
-// Formulaire et disposition des champs
+// Formulaire générique
 .auth-form {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
 
-  .input-group {
+// Champs de saisie (utilisables à la fois dans le formulaire principal et dans la modale)
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: $color-prussian-blue;
+  }
+
+  .input-field-wrapper {
+    position: relative;
     display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
+    align-items: center;
 
-    label {
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: $color-prussian-blue;
-    }
-
-    .input-field-wrapper {
-      position: relative;
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      color: #9AA5B8;
       display: flex;
       align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      transition: color 0.2s ease;
+    }
 
-      .input-icon {
-        position: absolute;
-        left: 14px;
-        color: #9AA5B8;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
-        transition: color 0.2s ease;
+    input {
+      width: 100%;
+      padding: 14px 14px 14px 44px;
+      border: 1.5px solid #E2E6EF;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-family: var(--font-body);
+      color: $color-black;
+      background-color: #FAFBFD;
+      transition: all 0.2s ease;
+
+      &::placeholder {
+        color: #B5BECE;
       }
 
-      input {
-        width: 100%;
-        padding: 13px 14px 13px 44px;
-        border: 1.5px solid #E2E6EF;
-        border-radius: 10px;
-        font-size: 0.95rem;
-        font-family: var(--font-body);
-        color: $color-black;
-        background-color: #FAFBFD;
-        transition: all 0.2s ease;
+      &:focus {
+        outline: none;
+        border-color: $color-orange;
+        background-color: $color-white;
+        box-shadow: 0 0 0 3px rgba(252, 163, 17, 0.2);
 
-        &::placeholder {
-          color: #B5BECE;
-        }
-
-        &:focus {
-          outline: none;
-          border-color: $color-orange;
-          background-color: $color-white;
-          box-shadow: 0 0 0 3px rgba(252, 163, 17, 0.18);
-
-          & + .input-icon {
-            color: $color-orange;
-          }
+        & + .input-icon {
+          color: $color-orange;
         }
       }
     }
   }
 }
 
-// Ligne d'actions du formulaire
+// Bouton principal d'action (soumission formulaires et modales)
+.submit-btn {
+  padding: 13px 28px;
+  background: linear-gradient(135deg, $color-orange 0%, $color-orange-hover 100%);
+  color: $color-prussian-blue;
+  border: none;
+  border-radius: 50px;
+  font-family: var(--font-heading);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 6px 16px rgba(252, 163, 17, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 140px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(252, 163, 17, 0.45);
+    background: $color-orange;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+// Ligne d'actions du formulaire principal
 .auth-actions-row {
   display: flex;
   align-items: center;
@@ -191,55 +230,19 @@
       text-decoration: underline;
     }
   }
-
-  .submit-btn {
-    padding: 13px 28px;
-    background: linear-gradient(135deg, $color-orange 0%, $color-orange-hover 100%);
-    color: $color-prussian-blue;
-    border: none;
-    border-radius: 50px;
-    font-family: var(--font-heading);
-    font-size: 0.92rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    box-shadow: 0 6px 16px rgba(252, 163, 17, 0.35);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-width: 140px;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 22px rgba(252, 163, 17, 0.45);
-      background: $color-orange;
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-  }
 }
 
 // Messages d'alerte et de confirmation
 .auth-message {
   margin-top: 1rem;
-  padding: 10px 14px;
+  padding: 12px 14px;
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
+  line-height: 1.4;
 
   &.error {
     background-color: #FDF2F2;
@@ -386,91 +389,131 @@
   }
 }
 
-// Modale de réinitialisation de mot de passe
+// =====================================================================
+// MODALE INTERACTIVE DE RÉINITIALISATION DE MOT DE PASSE (REDESIGN)
+// =====================================================================
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(14, 22, 38, 0.75);
-  backdrop-filter: blur(6px);
+  background-color: rgba(10, 17, 32, 0.78);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  z-index: 100;
-  animation: fadeIn 0.2s ease-out;
+  z-index: 1000;
+  animation: modalBackdropFadeIn 0.22s ease-out;
 
   .modal-card {
     width: 100%;
-    max-width: 480px;
+    max-width: 500px;
     background-color: $color-white;
-    border-radius: 20px;
+    border-radius: 24px;
     padding: 2.5rem;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(20, 33, 61, 0.1);
+    box-shadow: 
+      0 30px 70px -15px rgba(0, 0, 0, 0.65),
+      0 0 0 1px rgba(20, 33, 61, 0.08);
+    animation: modalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
     .modal-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 1rem;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
 
-      h3 {
-        font-family: var(--font-heading);
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: $color-prussian-blue;
+      .modal-title-with-badge {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .modal-icon-badge {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          background: rgba(252, 163, 17, 0.14);
+          color: $color-orange;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        h3 {
+          font-family: var(--font-heading);
+          font-size: 1.28rem;
+          font-weight: 700;
+          color: $color-prussian-blue;
+          letter-spacing: -0.01em;
+        }
       }
 
       .modal-close-btn {
-        background: transparent;
-        border: none;
-        font-size: 1.25rem;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: #F1F4F9;
+        border: 1px solid #E2E6EF;
+        font-size: 1rem;
         color: $color-muted-text;
         cursor: pointer;
-        padding: 4px;
-        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
 
         &:hover {
+          background-color: $color-alabaster-grey;
           color: $color-black;
+          transform: rotate(90deg);
         }
       }
     }
 
     .modal-description {
-      font-size: 0.9rem;
+      font-size: 0.92rem;
       color: $color-muted-text;
-      line-height: 1.5;
-      margin-bottom: 1.5rem;
+      line-height: 1.55;
+      margin-bottom: 1.75rem;
+      margin-top: 0.5rem;
     }
 
     .modal-actions {
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 1rem;
-      margin-top: 1.5rem;
+      gap: 12px;
+      margin-top: 1.75rem;
 
       .modal-cancel-btn {
-        padding: 11px 20px;
+        padding: 12px 24px;
         background: transparent;
-        border: 1px solid #D5DCE8;
+        border: 1.5px solid #CBD5E1;
         border-radius: 50px;
-        font-family: var(--font-body);
+        font-family: var(--font-heading);
         font-size: 0.88rem;
-        font-weight: 600;
-        color: $color-muted-text;
+        font-weight: 700;
+        color: $color-prussian-blue;
         cursor: pointer;
+        transition: all 0.2s ease;
 
         &:hover {
           background-color: $color-alabaster-grey;
-          color: $color-prussian-blue;
+          border-color: #94A3B8;
         }
       }
     }
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes modalBackdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }

@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PublicOnlyRoute } from "./components/PublicOnlyRoute";
 import { AuthPage } from "./pages/AuthPage";
 import { ChannelsPage } from "./pages/ChannelsPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 
 // Configuration du routeur principal de l'application
 function App() {
@@ -16,6 +17,9 @@ function App() {
           <Route element={<PublicOnlyRoute />}>
             <Route path="/login" element={<AuthPage />} />
           </Route>
+
+          {/* Route personnalisée de réinitialisation de mot de passe */}
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Routes privées sécurisées nécessitant une authentification active */}
           <Route element={<ProtectedRoute />}>
