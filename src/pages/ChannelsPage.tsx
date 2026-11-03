@@ -1,6 +1,7 @@
 import React from "react";
 import { useAuth } from "../context/AuthContext";
 import { OnyxLogo } from "../components/OnyxLogo";
+import "./ChannelsPage.scss";
 
 // Structure de données descriptive d'un canal de cours
 interface ChannelPreview {
