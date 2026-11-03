@@ -142,7 +142,13 @@ export const AuthCard: React.FC = () => {
     setForgotMessage(null);
 
     try {
-      await sendPasswordResetEmail(auth, targetEmail);
+      // Configuration de redirection vers notre interface personnalisée Onyx Hub
+      const actionCodeSettings = {
+        url: `${window.location.origin}/reset-password`,
+        handleCodeInApp: true,
+      };
+
+      await sendPasswordResetEmail(auth, targetEmail, actionCodeSettings);
       setForgotMessage({
         type: "success",
         text: `Un email avec les instructions a été envoyé à ${targetEmail}. Pensez à vérifier vos spams.`,
