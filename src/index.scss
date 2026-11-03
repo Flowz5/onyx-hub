@@ -51,6 +51,13 @@ html, body {
 #root {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
+}
+
+.auth-page-layout {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
@@ -439,61 +446,393 @@ html, body {
 }
 
 // =====================================================================
-// ÉCRAN DASHBOARD TEMPORAIRE (UNE FOIS L'UTILISATEUR CONNECTÉ)
+// MODALE INTERACTIVE DE RÉINITIALISATION DE MOT DE PASSE
 // =====================================================================
 
-.authenticated-card {
-  width: 100%;
-  max-width: 600px;
-  background-color: $color-white;
-  border-radius: 24px;
-  padding: 3rem;
-  text-align: center;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(14, 22, 38, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
 
-  .user-badge {
+  .modal-card {
+    width: 100%;
+    max-width: 480px;
+    background-color: $color-white;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(20, 33, 61, 0.1);
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+
+      h3 {
+        font-family: var(--font-heading);
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: $color-prussian-blue;
+      }
+
+      .modal-close-btn {
+        background: transparent;
+        border: none;
+        font-size: 1.25rem;
+        color: $color-muted-text;
+        cursor: pointer;
+        padding: 4px;
+        line-height: 1;
+
+        &:hover {
+          color: $color-black;
+        }
+      }
+    }
+
+    .modal-description {
+      font-size: 0.9rem;
+      color: $color-muted-text;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 1rem;
+      margin-top: 1.5rem;
+
+      .modal-cancel-btn {
+        padding: 11px 20px;
+        background: transparent;
+        border: 1px solid #D5DCE8;
+        border-radius: 50px;
+        font-family: var(--font-body);
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: $color-muted-text;
+        cursor: pointer;
+
+        &:hover {
+          background-color: $color-alabaster-grey;
+          color: $color-prussian-blue;
+        }
+      }
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+// =====================================================================
+// ESPACE CHANNELS : EN-TÊTE ET GRILLE DES MATIÈRES (UNDER CONSTRUCTION)
+// =====================================================================
+
+.channels-page-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #0E1626;
+}
+
+.channels-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2.5rem;
+  background: rgba(20, 33, 61, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  @media (max-width: 768px) {
+    padding: 1rem 1.25rem;
+  }
+
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    .topbar-title {
+      display: flex;
+      flex-direction: column;
+
+      .brand-name {
+        font-family: var(--font-heading);
+        font-size: 1.2rem;
+        letter-spacing: 0.08em;
+        color: $color-white;
+
+        strong {
+          color: $color-orange;
+        }
+      }
+
+      .brand-badge {
+        font-size: 0.65rem;
+        letter-spacing: 0.15em;
+        font-weight: 700;
+        color: $color-orange;
+      }
+    }
+  }
+
+  .topbar-user-area {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      text-align: right;
+
+      @media (max-width: 600px) {
+        display: none;
+      }
+
+      .user-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: $color-white;
+      }
+
+      .user-email {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+      }
+    }
+
+    .signout-header-btn {
+      padding: 8px 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50px;
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: $color-white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: #DC2626;
+        border-color: #DC2626;
+      }
+    }
+  }
+}
+
+.channels-main-content {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem 1rem;
+  }
+}
+
+.construction-banner {
+  background: linear-gradient(135deg, $color-prussian-blue 0%, #0A1120 100%);
+  border: 1px solid rgba(252, 163, 17, 0.35);
+  border-radius: 20px;
+  padding: 2.25rem;
+  margin-bottom: 3rem;
+  color: $color-white;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+
+  .banner-status-tag {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background-color: rgba(252, 163, 17, 0.12);
-    color: $color-prussian-blue;
-    padding: 6px 14px;
+    background: rgba(252, 163, 17, 0.15);
+    color: $color-orange;
+    padding: 4px 12px;
     border-radius: 50px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    margin-bottom: 1rem;
+
+    .pulse-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: $color-orange;
+      box-shadow: 0 0 10px $color-orange;
+    }
   }
 
   h2 {
     font-family: var(--font-heading);
-    font-size: 2rem;
-    color: $color-prussian-blue;
-    margin-bottom: 0.75rem;
+    font-size: 1.85rem;
+    font-weight: 800;
+    margin-bottom: 0.6rem;
   }
 
   p {
-    color: $color-muted-text;
-    font-size: 1rem;
-    margin-bottom: 2rem;
-    line-height: 1.5;
-  }
+    color: $color-alabaster-grey;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    max-width: 850px;
 
-  .signout-btn {
-    padding: 12px 28px;
-    background-color: $color-prussian-blue;
-    color: $color-white;
-    border: none;
-    border-radius: 50px;
-    font-family: var(--font-heading);
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-      background-color: $color-black;
-      transform: translateY(-2px);
+    strong {
+      color: $color-orange;
     }
   }
 }
+
+.channels-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  h3 {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: $color-white;
+    margin-bottom: 0.25rem;
+  }
+
+  p {
+    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .create-channel-btn {
+    padding: 10px 22px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px dashed rgba(252, 163, 17, 0.5);
+    border-radius: 50px;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: $color-orange;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 1.5rem;
+
+  .channel-card {
+    background: rgba(20, 33, 61, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.25s ease;
+
+    &:hover {
+      transform: translateY(-4px);
+      border-color: rgba(252, 163, 17, 0.4);
+      background: rgba(20, 33, 61, 0.9);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .channel-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+
+      .channel-category {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.7);
+        padding: 4px 10px;
+        border-radius: 6px;
+      }
+
+      .channel-hash {
+        font-family: var(--font-heading);
+        font-weight: 800;
+        font-size: 1.1rem;
+        color: $color-orange;
+      }
+    }
+
+    .channel-name {
+      font-family: var(--font-heading);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: $color-white;
+      margin-bottom: 0.5rem;
+    }
+
+    .channel-description {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 1.5rem;
+      flex: 1;
+    }
+
+    .channel-stats {
+      display: flex;
+      gap: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      margin-bottom: 1rem;
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+
+        .stat-value {
+          font-family: var(--font-heading);
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: $color-white;
+
+          &.tickets {
+            color: $color-orange;
+          }
+        }
+
+        .stat-label {
+          font-size: 0.72rem;
+          color: rgba(255, 255, 255, 0.5);
+        }
+      }
+    }
+
+    .channel-card-footer {
+      .channel-enter-text {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: $color-orange;
+      }
+    }
+  }
+}
+

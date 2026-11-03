@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -11,6 +12,8 @@ import { OnyxLogo } from "./OnyxLogo";
 
 // Composant principal de la page d'authentification (Connexion & Inscription)
 export const AuthCard: React.FC = () => {
+  const navigate = useNavigate();
+
   // Gestion de l'état de l'onglet actif (signin ou signup)
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
 
@@ -25,6 +28,12 @@ export const AuthCard: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // État de la modale de réinitialisation de mot de passe
+  const [showForgotModal, setShowForgotModal] = useState<boolean>(false);
+  const [forgotEmail, setForgotEmail] = useState<string>("");
+  const [forgotLoading, setForgotLoading] = useState<boolean>(false);
+  const [forgotMessage, setForgotMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   // Traduction des codes d'erreur Firebase en messages explicites
   const formatFirebaseError = (code: string): string => {
     switch (code) {
@@ -33,7 +42,7 @@ export const AuthCard: React.FC = () => {
       case "auth/invalid-email":
         return "L'adresse email saisie est invalide.";
       case "auth/operation-not-allowed":
-        return "L'authentification par email/mot de passe n'est pas activée sur Firebase.";
+        return "L'authentification par email/mot de passe n'est pas encore activée sur la console Firebase.";
       case "auth/weak-password":
         return "Le mot de passe doit comporter au moins 6 caractères.";
       case "auth/user-not-found":
@@ -43,7 +52,7 @@ export const AuthCard: React.FC = () => {
       case "auth/too-many-requests":
         return "Trop de tentatives infructueuses. Veuillez patienter avant de réessayer.";
       default:
-        return "Une erreur inattendue est survenue. Veuillez réessayer.";
+        return "Une erreur inattendue est survenue. Veuillez vérifier vos informations ou réessayer.";
     }
   };
 
@@ -97,15 +106,16 @@ export const AuthCard: React.FC = () => {
             role: "student",
           });
         } catch (firestoreError) {
-          // Journalisation discrète de l'écriture Firestore sans bloquer la session
           console.warn("Écriture du document utilisateur Firestore différée:", firestoreError);
         }
 
-        setSuccessMessage("Compte créé avec succès ! Connexion en cours...");
+        setSuccessMessage("Compte créé avec succès ! Redirection en cours...");
+        setTimeout(() => navigate("/channels"), 800);
       } else {
         // Connexion de l'utilisateur existant
         await signInWithEmailAndPassword(auth, email.trim(), password);
-        setSuccessMessage("Connexion réussie ! Redirection...");
+        setSuccessMessage("Connexion réussie ! Redirection en cours...");
+        setTimeout(() => navigate("/channels"), 500);
       }
     } catch (err: unknown) {
       const error = err as { code?: string; message?: string };
@@ -116,24 +126,35 @@ export const AuthCard: React.FC = () => {
   };
 
   // Envoi de l'email de réinitialisation de mot de passe
-  const handleForgotPassword = async () => {
-    if (!email.trim()) {
-      setErrorMessage("Veuillez saisir votre adresse email dans le champ ci-dessus puis récliquer sur ce lien.");
+  const handleSendResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetEmail = forgotEmail.trim() || email.trim();
+
+    if (!targetEmail) {
+      setForgotMessage({
+        type: "error",
+        text: "Veuillez renseigner votre adresse email pour recevoir le lien.",
+      });
       return;
     }
 
-    setLoading(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+    setForgotLoading(true);
+    setForgotMessage(null);
 
     try {
-      await sendPasswordResetEmail(auth, email.trim());
-      setSuccessMessage("Un email de réinitialisation vous a été envoyé. Vérifiez votre boîte de réception.");
+      await sendPasswordResetEmail(auth, targetEmail);
+      setForgotMessage({
+        type: "success",
+        text: `Un email avec les instructions a été envoyé à ${targetEmail}. Pensez à vérifier vos spams.`,
+      });
     } catch (err: unknown) {
       const error = err as { code?: string };
-      setErrorMessage(formatFirebaseError(error.code || ""));
+      setForgotMessage({
+        type: "error",
+        text: formatFirebaseError(error.code || ""),
+      });
     } finally {
-      setLoading(false);
+      setForgotLoading(false);
     }
   };
 
@@ -303,7 +324,11 @@ export const AuthCard: React.FC = () => {
                 <button
                   type="button"
                   className="forgot-password-link"
-                  onClick={handleForgotPassword}
+                  onClick={() => {
+                    setForgotEmail(email);
+                    setForgotMessage(null);
+                    setShowForgotModal(true);
+                  }}
                   disabled={loading}
                 >
                   Mot de passe oublié ?
@@ -386,6 +411,74 @@ export const AuthCard: React.FC = () => {
           <span>PROMOTION 2026</span>
         </div>
       </div>
+
+      {/* Modale interactive de réinitialisation de mot de passe */}
+      {showForgotModal && (
+        <div className="modal-backdrop" onClick={() => setShowForgotModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Réinitialiser le mot de passe</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowForgotModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="modal-description">
+              Saisissez l'adresse email de votre compte élève. Nous vous enverrons immédiatement un lien officiel Firebase pour choisir un nouveau mot de passe.
+            </p>
+
+            <form onSubmit={handleSendResetPassword}>
+              <div className="input-group" style={{ marginBottom: "1rem" }}>
+                <label htmlFor="forgotEmail">Votre adresse email</label>
+                <div className="input-field-wrapper">
+                  <span className="input-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                    </svg>
+                  </span>
+                  <input
+                    id="forgotEmail"
+                    type="email"
+                    placeholder="nom@ecole.fr"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {forgotMessage && (
+                <div className={`auth-message ${forgotMessage.type}`} style={{ marginBottom: "1rem" }}>
+                  <span>{forgotMessage.text}</span>
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="modal-cancel-btn"
+                  onClick={() => setShowForgotModal(false)}
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading ? "Envoi en cours..." : "ENVOYER LE LIEN"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
