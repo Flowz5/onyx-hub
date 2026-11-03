@@ -170,7 +170,7 @@ export const AuthCard: React.FC = () => {
             </h1>
             <p className="auth-subtitle">
               {isSignUp
-                ? "Rejoignez l'espace d'entraide de votre classe"
+                ? "Rejoignez l'espace d'entraide et de partage"
                 : "Connectez-vous pour accéder aux channels et tickets"}
             </p>
           </div>
@@ -400,15 +400,15 @@ export const AuthCard: React.FC = () => {
             ONYX <span>HUB</span>
           </h2>
           <p className="hero-tagline">
-            L'espace centralisé d'entraide, de tickets d'assistance et d'échanges collaboratifs pour votre classe.
+            L'espace centralisé d'entraide, de tickets d'assistance et d'échanges collaboratifs ouvert à tous.
           </p>
         </div>
 
         {/* Mentions discrètes de bas de carte */}
         <div className="hero-footer-credits">
-          <span>PAR LA CLASSE</span>
+          <span>PAR LÉO DUPONT</span>
           <span className="credit-separator" />
-          <span>PROMOTION 2026</span>
+          <span>ÉTUDIANT EN BTS SIO</span>
         </div>
       </div>
 
