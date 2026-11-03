@@ -417,18 +417,28 @@ export const AuthCard: React.FC = () => {
         <div className="modal-backdrop" onClick={() => setShowForgotModal(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Réinitialiser le mot de passe</h3>
+              <div className="modal-title-with-badge">
+                <div className="modal-icon-badge">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="8" cy="15" r="4"></circle>
+                    <path d="m10.85 12.15 7.65-7.65a1 1 0 0 1 1.41 0l2.54 2.54a1 1 0 0 1 0 1.41l-2.05 2.05"></path>
+                    <path d="m14 8 2 2"></path>
+                  </svg>
+                </div>
+                <h3>Réinitialiser le mot de passe</h3>
+              </div>
               <button
                 type="button"
                 className="modal-close-btn"
                 onClick={() => setShowForgotModal(false)}
+                title="Fermer"
               >
                 ✕
               </button>
             </div>
 
             <p className="modal-description">
-              Saisissez l'adresse email de votre compte élève. Nous vous enverrons immédiatement un lien officiel Firebase pour choisir un nouveau mot de passe.
+              Saisissez l'adresse email associée à votre compte pour recevoir immédiatement un lien officiel et sécurisé de réinitialisation.
             </p>
 
             <form onSubmit={handleSendResetPassword}>
