@@ -1,0 +1,499 @@
+// =====================================================================
+// CHARTE GRAPHIQUE & PALETTE OFFICIELLE "BLACK & GOLD ELEGANCE"
+// =====================================================================
+
+// Variables SCSS réutilisables dans tout le projet
+$color-black: #000000;
+$color-prussian-blue: #14213D;
+$color-orange: #FCA311;
+$color-alabaster-grey: #E5E5E5;
+$color-white: #FFFFFF;
+
+// Nuances utilitaires calculées pour les états et contrastes
+$color-prussian-light: #1D2D50;
+$color-prussian-dark: #0B1324;
+$color-orange-hover: #E5920C;
+$color-border-subtle: rgba(20, 33, 61, 0.12);
+$color-muted-text: #6C7A92;
+
+// Variables CSS globales
+:root {
+  --color-black: #{$color-black};
+  --color-prussian-blue: #{$color-prussian-blue};
+  --color-orange: #{$color-orange};
+  --color-alabaster-grey: #{$color-alabaster-grey};
+  --color-white: #{$color-white};
+  --color-border-subtle: #{$color-border-subtle};
+  --color-muted-text: #{$color-muted-text};
+
+  --font-heading: "Space Grotesk", "Plus Jakarta Sans", sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+}
+
+// =====================================================================
+// RÉINITIALISATION & STYLES GLOBAUX
+// =====================================================================
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  min-height: 100vh;
+  font-family: var(--font-body);
+  background-color: #0E1626;
+  color: $color-prussian-blue;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+// =====================================================================
+// CONTENEUR PRINCIPAL DE LA PAGE D'AUTHENTIFICATION (SPLIT VIEW)
+// =====================================================================
+
+.auth-wrapper {
+  width: 100%;
+  max-width: 1120px;
+  min-height: 640px;
+  background-color: $color-white;
+  border-radius: 28px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1.05fr 1.15fr;
+  box-shadow: 
+    0 25px 60px -15px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    max-width: 520px;
+    border-radius: 20px;
+  }
+}
+
+// =====================================================================
+// COLONNE GAUCHE : FORMULAIRE D'AUTHENTIFICATION
+// =====================================================================
+
+.auth-form-column {
+  padding: 3.5rem 3.5rem 2.5rem 3.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: $color-white;
+
+  @media (max-width: 600px) {
+    padding: 2.25rem 1.75rem;
+  }
+}
+
+.auth-header {
+  margin-bottom: 2rem;
+
+  .auth-title {
+    font-family: var(--font-heading);
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: $color-prussian-blue;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+
+  .auth-subtitle {
+    color: $color-muted-text;
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+}
+
+// Bascule d'onglets (Connexion / Inscription)
+.auth-tabs {
+  display: flex;
+  background-color: $color-alabaster-grey;
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(20, 33, 61, 0.06);
+
+  .auth-tab-btn {
+    flex: 1;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: $color-muted-text;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &.active {
+      background-color: $color-white;
+      color: $color-prussian-blue;
+      box-shadow: 0 2px 8px rgba(20, 33, 61, 0.08);
+    }
+
+    &:hover:not(.active) {
+      color: $color-prussian-blue;
+    }
+  }
+}
+
+// Formulaire et champs de saisie
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: $color-prussian-blue;
+    }
+
+    .input-field-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+
+      .input-icon {
+        position: absolute;
+        left: 14px;
+        color: #9AA5B8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        transition: color 0.2s ease;
+      }
+
+      input {
+        width: 100%;
+        padding: 13px 14px 13px 44px;
+        border: 1.5px solid #E2E6EF;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        font-family: var(--font-body);
+        color: $color-black;
+        background-color: #FAFBFD;
+        transition: all 0.2s ease;
+
+        &::placeholder {
+          color: #B5BECE;
+        }
+
+        &:focus {
+          outline: none;
+          border-color: $color-orange;
+          background-color: $color-white;
+          box-shadow: 0 0 0 3px rgba(252, 163, 17, 0.18);
+
+          & + .input-icon {
+            color: $color-orange;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Pied de formulaire (actions & mot de passe oublié)
+.auth-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  gap: 1rem;
+
+  .forgot-password-link {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #8390A6;
+    text-decoration: none;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: $color-prussian-blue;
+      text-decoration: underline;
+    }
+  }
+
+  .submit-btn {
+    padding: 13px 28px;
+    background: linear-gradient(135deg, $color-orange 0%, $color-orange-hover 100%);
+    color: $color-prussian-blue;
+    border: none;
+    border-radius: 50px;
+    font-family: var(--font-heading);
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    box-shadow: 0 6px 16px rgba(252, 163, 17, 0.35);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 140px;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(252, 163, 17, 0.45);
+      background: $color-orange;
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+  }
+}
+
+// Bannières de statut (erreur & succès)
+.auth-message {
+  margin-top: 1rem;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &.error {
+    background-color: #FDF2F2;
+    color: #DC2626;
+    border: 1px solid #FCA5A5;
+  }
+
+  &.success {
+    background-color: #F0FDF4;
+    color: #16A34A;
+    border: 1px solid #86EFAC;
+  }
+}
+
+// Mention discrète bas de formulaire
+.auth-footer-note {
+  margin-top: 2rem;
+  font-size: 0.8rem;
+  color: #9EAABA;
+  text-align: center;
+
+  a {
+    color: $color-prussian-blue;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// =====================================================================
+// COLONNE DROITE : HERO BRANDED (INSPIRÉ DE LA MAQUETTE FOURNIE)
+// =====================================================================
+
+.auth-hero-column {
+  position: relative;
+  background: radial-gradient(circle at 60% 40%, #1A2C52 0%, $color-prussian-blue 60%, $color-black 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3.5rem 3rem 2.5rem 3rem;
+  color: $color-white;
+  overflow: hidden;
+  text-align: center;
+
+  @media (max-width: 900px) {
+    order: -1;
+    padding: 3rem 1.5rem;
+    min-height: 380px;
+  }
+
+  // Motifs architecturaux géométriques en arrière-plan
+  &::before {
+    content: "";
+    position: absolute;
+    width: 540px;
+    height: 540px;
+    border-radius: 50%;
+    border: 1px dashed rgba(252, 163, 17, 0.15);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    width: 420px;
+    height: 420px;
+    border-radius: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    pointer-events: none;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: auto 0;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: rgba(255, 255, 255, 0.85);
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+  }
+
+  .hero-logo-box {
+    margin-bottom: 1.75rem;
+    filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.5));
+  }
+
+  .hero-brand-name {
+    font-family: var(--font-heading);
+    font-size: 2.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $color-white;
+    margin-bottom: 1.25rem;
+    line-height: 1;
+
+    span {
+      color: $color-orange;
+    }
+  }
+
+  .hero-tagline {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: rgba(229, 229, 229, 0.85);
+    max-width: 340px;
+    font-weight: 400;
+  }
+
+  .hero-footer-credits {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+
+    .credit-separator {
+      width: 1px;
+      height: 12px;
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+// =====================================================================
+// ÉCRAN DASHBOARD TEMPORAIRE (UNE FOIS L'UTILISATEUR CONNECTÉ)
+// =====================================================================
+
+.authenticated-card {
+  width: 100%;
+  max-width: 600px;
+  background-color: $color-white;
+  border-radius: 24px;
+  padding: 3rem;
+  text-align: center;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  .user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: rgba(252, 163, 17, 0.12);
+    color: $color-prussian-blue;
+    padding: 6px 14px;
+    border-radius: 50px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+  }
+
+  h2 {
+    font-family: var(--font-heading);
+    font-size: 2rem;
+    color: $color-prussian-blue;
+    margin-bottom: 0.75rem;
+  }
+
+  p {
+    color: $color-muted-text;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+  }
+
+  .signout-btn {
+    padding: 12px 28px;
+    background-color: $color-prussian-blue;
+    color: $color-white;
+    border: none;
+    border-radius: 50px;
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: $color-black;
+      transform: translateY(-2px);
+    }
+  }
+}
