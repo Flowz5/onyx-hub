@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { OnyxLogo } from "../components/OnyxLogo";
+import { CreateChannelModal } from "../components/CreateChannelModal";
+import type { NewChannelFormData } from "../components/CreateChannelModal";
 import "./ChannelsPage.scss";
 
 // Structure de données descriptive d'un canal de discussion
@@ -9,8 +11,11 @@ export interface Channel {
   name: string;
   description: string;
   tags: string[];
+  visibility: "public" | "private";
   ticketsCount: number;
   postsCount: number;
+  createdAt?: string;
+  createdBy?: string;
 }
 
 // Liste des filtres par tags disponibles pour la recherche
@@ -34,8 +39,11 @@ export const ChannelsPage: React.FC = () => {
   // État local pour le tag actuellement sélectionné
   const [selectedTag, setSelectedTag] = useState("Tous");
 
-  // Liste actuelle des canaux (initialisée vide selon la demande)
-  const [channels] = useState<Channel[]>([]);
+  // État d'ouverture de la modale de création de canal
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Liste actuelle des canaux
+  const [channels, setChannels] = useState<Channel[]>([]);
 
   // Filtrage dynamique des canaux selon la recherche textuelle et le tag sélectionné
   const filteredChannels = channels.filter((channel) => {
@@ -53,10 +61,23 @@ export const ChannelsPage: React.FC = () => {
     setSelectedTag("Tous");
   };
 
-  // Gestionnaire d'action pour la création d'un nouveau canal
-  const handleCreateChannel = () => {
-    // Action prête pour l'ouverture de la modale de création
-    console.log("Action de création de canal déclenchée");
+  // Gestionnaire de création d'un nouveau canal à la validation de la modale
+  const handleCreateChannelSubmit = (data: NewChannelFormData) => {
+    const newChannel: Channel = {
+      id: `channel-${Date.now()}`,
+      name: data.name,
+      description: data.description,
+      tags: data.tags,
+      visibility: data.visibility,
+      ticketsCount: 0,
+      postsCount: 0,
+      createdAt: new Date().toISOString(),
+      createdBy: user?.displayName || user?.email || "Étudiant",
+    };
+
+    // Ajout en tête de liste des canaux
+    setChannels((prevChannels) => [newChannel, ...prevChannels]);
+    setIsCreateModalOpen(false);
   };
 
   return (
@@ -149,7 +170,7 @@ export const ChannelsPage: React.FC = () => {
           <button
             type="button"
             className="create-channel-btn"
-            onClick={handleCreateChannel}
+            onClick={() => setIsCreateModalOpen(true)}
           >
             <span className="btn-icon">+</span>
             <span>Créer un canal</span>
@@ -189,7 +210,7 @@ export const ChannelsPage: React.FC = () => {
                 <button
                   type="button"
                   className="create-first-channel-btn"
-                  onClick={handleCreateChannel}
+                  onClick={() => setIsCreateModalOpen(true)}
                 >
                   + Créer le premier canal
                 </button>
@@ -201,20 +222,44 @@ export const ChannelsPage: React.FC = () => {
             {filteredChannels.map((channel) => (
               <article key={channel.id} className="channel-card">
                 <div className="channel-card-header">
-                  <span className="channel-tags">{channel.tags.join(" • ")}</span>
-                  <span className="channel-hash">#</span>
+                  <div className="card-header-left">
+                    <span className="channel-hash">#</span>
+                    <span className={`channel-visibility-tag ${channel.visibility}`}>
+                      {channel.visibility === "private" ? "Privé" : "Public"}
+                    </span>
+                  </div>
+                  <div className="channel-tags-preview">
+                    {channel.tags.slice(0, 2).map((tag) => (
+                      <span key={tag} className="channel-mini-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <h4 className="channel-name">{channel.name}</h4>
-                <p className="channel-description">{channel.description}</p>
+                <p className="channel-description">
+                  {channel.description || "Aucune description fournie pour ce canal."}
+                </p>
                 <div className="channel-card-footer">
-                  <span className="channel-enter-text">Accéder au channel →</span>
+                  <span className="channel-creator-info">
+                    Par {channel.createdBy || "Étudiant"}
+                  </span>
+                  <span className="channel-enter-text">Accéder au canal →</span>
                 </div>
               </article>
             ))}
           </div>
         )}
+
+        {/* Modale interactive de création de canal */}
+        <CreateChannelModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={handleCreateChannelSubmit}
+        />
       </main>
     </div>
   );
 };
+
 
