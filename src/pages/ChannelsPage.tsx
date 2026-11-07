@@ -1,25 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { OnyxLogo } from "../components/OnyxLogo";
+import { ChannelSearchBar } from "../components/ChannelSearchBar";
+import { ChannelRow } from "../components/ChannelRow";
 import { CreateChannelModal } from "../components/CreateChannelModal";
-import type { NewChannelFormData } from "../components/CreateChannelModal";
+import type { Channel, NewChannelFormData } from "../types/channel";
 import "./ChannelsPage.scss";
 
-// Structure de données descriptive d'un canal de discussion
-export interface Channel {
-  id: string;
-  name: string;
-  description: string;
-  tags: string[];
-  visibility: "public" | "private";
-  ticketsCount: number;
-  postsCount: number;
-  createdAt?: string;
-  createdBy?: string;
-}
-
-// Liste des filtres par tags disponibles pour la recherche
-const AVAILABLE_TAGS: string[] = [
+// Liste des tags thématiques initiaux
+const DEFAULT_TAGS: string[] = [
   "Tous",
   "Dev Web",
   "Cybersécurité",
@@ -32,12 +22,16 @@ const AVAILABLE_TAGS: string[] = [
 // Page principale affichant l'espace de gestion et de consultation des canaux
 export const ChannelsPage: React.FC = () => {
   const { user, signOutUser } = useAuth();
+  const navigate = useNavigate();
 
-  // État local pour la requête de recherche textuelle
+  // État local pour la requête de recherche textuelle globale
   const [searchQuery, setSearchQuery] = useState("");
 
   // État local pour le tag actuellement sélectionné
   const [selectedTag, setSelectedTag] = useState("Tous");
+
+  // Filtre d'affichage : "all" (Tous les canaux) ou "mine" (Canaux créés par moi)
+  const [filterScope, setFilterScope] = useState<"all" | "mine">("all");
 
   // État d'ouverture de la modale de création de canal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -45,23 +39,70 @@ export const ChannelsPage: React.FC = () => {
   // Liste actuelle des canaux
   const [channels, setChannels] = useState<Channel[]>([]);
 
-  // Filtrage dynamique des canaux selon la recherche textuelle et le tag sélectionné
-  const filteredChannels = channels.filter((channel) => {
-    const matchesSearch =
-      channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      channel.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTag =
-      selectedTag === "Tous" || channel.tags.includes(selectedTag);
-    return matchesSearch && matchesTag;
-  });
+  // Agrégation dynamique de tous les tags existants (par défaut + custom créés)
+  const availableTags = useMemo(() => {
+    const set = new Set<string>(DEFAULT_TAGS);
+    channels.forEach((channel) => {
+      channel.tags.forEach((tag) => set.add(tag));
+    });
+    return Array.from(set);
+  }, [channels]);
 
-  // Gestionnaire de réinitialisation des filtres de recherche
+  // Nombre de canaux créés par l'utilisateur connecté
+  const myChannelsCount = useMemo(() => {
+    if (!user) return 0;
+    return channels.filter(
+      (channel) =>
+        channel.creatorId === user.uid ||
+        channel.createdBy === user.email ||
+        channel.createdBy === user.displayName
+    ).length;
+  }, [channels, user]);
+
+  // Filtrage combiné : recherche textuelle, tag sélectionné et périmètre (Tous / Mes canaux)
+  const filteredChannels = useMemo(() => {
+    return channels.filter((channel) => {
+      // Correspondance texte (nom ou description)
+      const matchesSearch =
+        channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        channel.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // Correspondance du tag sélectionné
+      const matchesTag =
+        selectedTag === "Tous" || channel.tags.includes(selectedTag);
+
+      // Correspondance du périmètre (tous ou créés par l'utilisateur connecté)
+      const isOwner =
+        (user?.uid && channel.creatorId === user.uid) ||
+        (user?.email && channel.createdBy === user.email) ||
+        (user?.displayName && channel.createdBy === user.displayName);
+
+      const matchesScope = filterScope === "all" || Boolean(isOwner);
+
+      return matchesSearch && matchesTag && matchesScope;
+    });
+  }, [channels, searchQuery, selectedTag, filterScope, user]);
+
+  // Navigation vers la page détaillée du canal sélectionné
+  const handleSelectChannel = (channelId: string) => {
+    navigate(`/channels/${channelId}`);
+  };
+
+  // Suppression d'un canal créé par l'utilisateur
+  const handleDeleteChannel = (channelId: string) => {
+    setChannels((prevChannels) =>
+      prevChannels.filter((channel) => channel.id !== channelId)
+    );
+  };
+
+  // Réinitialisation de l'ensemble des filtres
   const handleResetFilters = () => {
     setSearchQuery("");
     setSelectedTag("Tous");
+    setFilterScope("all");
   };
 
-  // Gestionnaire de création d'un nouveau canal à la validation de la modale
+  // Enregistrement d'un nouveau canal suite à la soumission de la modale
   const handleCreateChannelSubmit = (data: NewChannelFormData) => {
     const newChannel: Channel = {
       id: `channel-${Date.now()}`,
@@ -69,14 +110,14 @@ export const ChannelsPage: React.FC = () => {
       description: data.description,
       tags: data.tags,
       visibility: data.visibility,
+      creatorId: user?.uid || "",
+      createdBy: user?.displayName || user?.email || "Étudiant",
+      createdAt: new Date().toISOString(),
       ticketsCount: 0,
       postsCount: 0,
-      createdAt: new Date().toISOString(),
-      createdBy: user?.displayName || user?.email || "Étudiant",
     };
 
-    // Ajout en tête de liste des canaux
-    setChannels((prevChannels) => [newChannel, ...prevChannels]);
+    setChannels((prev) => [newChannel, ...prev]);
     setIsCreateModalOpen(false);
   };
 
@@ -110,55 +151,20 @@ export const ChannelsPage: React.FC = () => {
 
       {/* Contenu principal de l'espace channels */}
       <main className="channels-main-content">
-        {/* Section de recherche et de filtres par tags */}
-        <section className="search-filter-section">
-          {/* Barre de recherche avec icône */}
-          <div className="search-bar-wrapper">
-            <span className="search-icon" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </span>
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Rechercher un canal, une matière, un sujet..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                className="clear-search-btn"
-                onClick={() => setSearchQuery("")}
-                title="Effacer la recherche"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+        {/* Composant réutilisable de recherche et de sélection de tags */}
+        <ChannelSearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          selectedTag={selectedTag}
+          onTagSelect={setSelectedTag}
+          availableTags={availableTags}
+        />
 
-          {/* Liste des tags de filtrage */}
-          <div className="tags-filter-bar">
-            {AVAILABLE_TAGS.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                className={`tag-pill ${selectedTag === tag ? "active" : ""}`}
-                onClick={() => setSelectedTag(tag)}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* En-tête de la liste des canaux avec bouton de création */}
+        {/* En-tête de section avec toggle de filtrage et bouton de création */}
         <div className="channels-section-header">
           <div className="section-title-group">
             <div className="title-with-badge">
-              <h3>Canaux disponibles</h3>
+              <h3>Canaux de discussion</h3>
               <span className="channels-count-badge">
                 {filteredChannels.length} {filteredChannels.length > 1 ? "canaux" : "canal"}
               </span>
@@ -166,18 +172,41 @@ export const ChannelsPage: React.FC = () => {
             <p>Accédez aux espaces d'échange ou démarrez un nouveau sujet d'entraide.</p>
           </div>
 
-          {/* Bouton pour créer un canal */}
-          <button
-            type="button"
-            className="create-channel-btn"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <span className="btn-icon">+</span>
-            <span>Créer un canal</span>
-          </button>
+          <div className="section-actions-group">
+            {/* Bouton Toggle : Tous les canaux vs Mes canaux */}
+            <div className="scope-toggle-group" role="group" aria-label="Filtrer les canaux">
+              <button
+                type="button"
+                className={`scope-toggle-btn ${filterScope === "all" ? "active" : ""}`}
+                onClick={() => setFilterScope("all")}
+              >
+                Tous les canaux
+              </button>
+              <button
+                type="button"
+                className={`scope-toggle-btn ${filterScope === "mine" ? "active" : ""}`}
+                onClick={() => setFilterScope("mine")}
+              >
+                Mes canaux
+                {myChannelsCount > 0 && (
+                  <span className="my-count-pill">{myChannelsCount}</span>
+                )}
+              </button>
+            </div>
+
+            {/* Bouton de création de canal */}
+            <button
+              type="button"
+              className="create-channel-btn"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              <span className="btn-icon">+</span>
+              <span>Créer un canal</span>
+            </button>
+          </div>
         </div>
 
-        {/* Liste des canaux ou affichage de l'état vide */}
+        {/* Liste des canaux sous forme de lignes horizontales ou affichage état vide */}
         {filteredChannels.length === 0 ? (
           <div className="empty-channels-state">
             <div className="empty-icon-wrapper">
@@ -189,10 +218,10 @@ export const ChannelsPage: React.FC = () => {
               </svg>
             </div>
 
-            {searchQuery || selectedTag !== "Tous" ? (
+            {searchQuery || selectedTag !== "Tous" || filterScope === "mine" ? (
               <>
                 <h4>Aucun canal correspondant</h4>
-                <p>Aucun canal ne correspond à vos critères de recherche actuels.</p>
+                <p>Aucun canal ne correspond à vos filtres et critères de recherche actuels.</p>
                 <button
                   type="button"
                   className="reset-filters-btn"
@@ -218,35 +247,16 @@ export const ChannelsPage: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="channels-grid">
+          <div className="channels-list-view">
             {filteredChannels.map((channel) => (
-              <article key={channel.id} className="channel-card">
-                <div className="channel-card-header">
-                  <div className="card-header-left">
-                    <span className="channel-hash">#</span>
-                    <span className={`channel-visibility-tag ${channel.visibility}`}>
-                      {channel.visibility === "private" ? "Privé" : "Public"}
-                    </span>
-                  </div>
-                  <div className="channel-tags-preview">
-                    {channel.tags.slice(0, 2).map((tag) => (
-                      <span key={tag} className="channel-mini-tag">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <h4 className="channel-name">{channel.name}</h4>
-                <p className="channel-description">
-                  {channel.description || "Aucune description fournie pour ce canal."}
-                </p>
-                <div className="channel-card-footer">
-                  <span className="channel-creator-info">
-                    Par {channel.createdBy || "Étudiant"}
-                  </span>
-                  <span className="channel-enter-text">Accéder au canal →</span>
-                </div>
-              </article>
+              <ChannelRow
+                key={channel.id}
+                channel={channel}
+                currentUserId={user?.uid}
+                currentUserEmail={user?.email || ""}
+                onSelectChannel={handleSelectChannel}
+                onDeleteChannel={handleDeleteChannel}
+              />
             ))}
           </div>
         )}
@@ -261,5 +271,6 @@ export const ChannelsPage: React.FC = () => {
     </div>
   );
 };
+
 
 

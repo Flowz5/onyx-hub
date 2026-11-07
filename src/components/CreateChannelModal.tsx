@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "./CreateChannelModal.scss";
 
-// Données requises pour la création d'un canal
-export interface NewChannelFormData {
-  name: string;
-  description: string;
-  tags: string[];
-  visibility: "public" | "private";
-}
+import type { NewChannelFormData } from "../types/channel";
+export type { NewChannelFormData };
 
 // Propriétés attendues par le composant modale
 interface CreateChannelModalProps {

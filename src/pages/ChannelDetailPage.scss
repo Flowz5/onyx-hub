@@ -1,0 +1,240 @@
+// =====================================================================
+// FEUILLE DE STYLE DE LA PAGE DÉTAIL D'UN CANAL (CHANNEL DETAIL)
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.channel-detail-page-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #0E1626;
+}
+
+// Barre de navigation supérieure
+.channel-detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2.5rem;
+  background: rgba(20, 33, 61, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  @media (max-width: 768px) {
+    padding: 1rem 1.25rem;
+  }
+
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+
+    .topbar-title {
+      display: flex;
+      flex-direction: column;
+
+      .brand-name {
+        font-family: var(--font-heading);
+        font-size: 1.2rem;
+        letter-spacing: 0.08em;
+        color: $color-white;
+
+        strong {
+          color: $color-orange;
+        }
+      }
+
+      .brand-badge {
+        font-size: 0.65rem;
+        letter-spacing: 0.15em;
+        font-weight: 700;
+        color: $color-orange;
+      }
+    }
+  }
+
+  .topbar-user-area {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      text-align: right;
+
+      @media (max-width: 600px) {
+        display: none;
+      }
+
+      .user-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: $color-white;
+      }
+
+      .user-email {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+      }
+    }
+
+    .signout-header-btn {
+      padding: 8px 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50px;
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: $color-white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: #DC2626;
+        border-color: #DC2626;
+      }
+    }
+  }
+}
+
+// Barre de navigation secondaire
+.channel-sub-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.25rem 2rem 0;
+
+  @media (max-width: 768px) {
+    padding: 1rem 1rem 0;
+  }
+
+  .back-to-channels-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50px;
+    padding: 8px 18px;
+    color: $color-alabaster-grey;
+    font-family: var(--font-body);
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    .back-arrow {
+      font-size: 1rem;
+      transition: transform 0.2s ease;
+    }
+
+    &:hover {
+      background: rgba(252, 163, 17, 0.15);
+      border-color: rgba(252, 163, 17, 0.4);
+      color: $color-white;
+
+      .back-arrow {
+        transform: translateX(-3px);
+      }
+    }
+  }
+
+  .current-channel-crumb {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+
+    strong {
+      color: $color-orange;
+    }
+  }
+}
+
+// Contenu central de la page
+.channel-detail-main {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem 1rem;
+  }
+
+  .channel-empty-canvas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 5rem 2rem;
+    background: rgba(20, 33, 61, 0.45);
+    border: 1px dashed rgba(252, 163, 17, 0.3);
+    border-radius: 24px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+
+    .canvas-icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 88px;
+      height: 88px;
+      border-radius: 24px;
+      background: rgba(252, 163, 17, 0.1);
+      border: 1px solid rgba(252, 163, 17, 0.25);
+      color: $color-orange;
+      margin-bottom: 1.5rem;
+    }
+
+    h2 {
+      font-family: var(--font-heading);
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: $color-white;
+      margin-bottom: 0.75rem;
+    }
+
+    .canvas-description {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.65);
+      max-width: 580px;
+      margin-bottom: 2rem;
+
+      strong {
+        color: $color-orange;
+      }
+    }
+
+    .canvas-status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(252, 163, 17, 0.12);
+      border: 1px solid rgba(252, 163, 17, 0.3);
+      color: $color-orange;
+      padding: 6px 16px;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+
+      .pulse-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: $color-orange;
+        box-shadow: 0 0 10px $color-orange;
+      }
+    }
+  }
+}
