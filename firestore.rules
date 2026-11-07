@@ -97,5 +97,36 @@ service cloud.firestore {
       allow delete: if isAuthenticated()
                     && isOwner(resource.data.creatorId);
     }
+
+    // -------------------------------------------------------------------------
+    // Collection: posts (Discussions et partages style Reddit)
+    // -------------------------------------------------------------------------
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && isOwner(request.resource.data.authorId)
+                    && request.resource.data.channelId is string
+                    && request.resource.data.title is string
+                    && request.resource.data.content is string;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated()
+                    && isOwner(resource.data.authorId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: tickets (Demandes d'aide et d'assistance)
+    // -------------------------------------------------------------------------
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && isOwner(request.resource.data.authorId)
+                    && request.resource.data.channelId is string
+                    && request.resource.data.title is string
+                    && request.resource.data.description is string;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated()
+                    && isOwner(resource.data.authorId);
+    }
   }
 }
+
