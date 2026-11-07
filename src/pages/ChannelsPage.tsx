@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { OnyxLogo } from "../components/OnyxLogo";
@@ -6,6 +6,11 @@ import { ChannelSearchBar } from "../components/ChannelSearchBar";
 import { ChannelRow } from "../components/ChannelRow";
 import { CreateChannelModal } from "../components/CreateChannelModal";
 import type { Channel, NewChannelFormData } from "../types/channel";
+import {
+  createChannelInFirestore,
+  deleteChannelFromFirestore,
+  subscribeToChannels,
+} from "../services/channelService";
 import "./ChannelsPage.scss";
 
 // Liste des tags thématiques initiaux
@@ -36,8 +41,28 @@ export const ChannelsPage: React.FC = () => {
   // État d'ouverture de la modale de création de canal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Liste actuelle des canaux
+  // État de chargement initial des données Firestore
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Liste actuelle des canaux persistée depuis Firestore
   const [channels, setChannels] = useState<Channel[]>([]);
+
+  // Écoute en temps réel des canaux depuis la base de données Firestore
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribe = subscribeToChannels(
+      (firestoreChannels) => {
+        setChannels(firestoreChannels);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("Erreur lors de la synchronisation Firestore :", error);
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   // Agrégation dynamique de tous les tags existants (par défaut + custom créés)
   const availableTags = useMemo(() => {
@@ -88,11 +113,14 @@ export const ChannelsPage: React.FC = () => {
     navigate(`/channels/${channelId}`);
   };
 
-  // Suppression d'un canal créé par l'utilisateur
-  const handleDeleteChannel = (channelId: string) => {
-    setChannels((prevChannels) =>
-      prevChannels.filter((channel) => channel.id !== channelId)
-    );
+  // Suppression d'un canal dans Firestore
+  const handleDeleteChannel = async (channelId: string) => {
+    try {
+      await deleteChannelFromFirestore(channelId);
+    } catch (error) {
+      console.error("Erreur lors de la suppression dans Firestore :", error);
+      alert("Une erreur est survenue lors de la suppression du canal.");
+    }
   };
 
   // Réinitialisation de l'ensemble des filtres
@@ -102,23 +130,16 @@ export const ChannelsPage: React.FC = () => {
     setFilterScope("all");
   };
 
-  // Enregistrement d'un nouveau canal suite à la soumission de la modale
-  const handleCreateChannelSubmit = (data: NewChannelFormData) => {
-    const newChannel: Channel = {
-      id: `channel-${Date.now()}`,
-      name: data.name,
-      description: data.description,
-      tags: data.tags,
-      visibility: data.visibility,
-      creatorId: user?.uid || "",
-      createdBy: user?.displayName || user?.email || "Étudiant",
-      createdAt: new Date().toISOString(),
-      ticketsCount: 0,
-      postsCount: 0,
-    };
-
-    setChannels((prev) => [newChannel, ...prev]);
-    setIsCreateModalOpen(false);
+  // Enregistrement d'un nouveau canal dans Firestore suite à la soumission de la modale
+  const handleCreateChannelSubmit = async (data: NewChannelFormData) => {
+    if (!user) return;
+    try {
+      await createChannelInFirestore(data, user);
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      console.error("Erreur lors de la création du canal dans Firestore :", error);
+      alert("Une erreur est survenue lors de la création du canal.");
+    }
   };
 
   return (
@@ -207,7 +228,15 @@ export const ChannelsPage: React.FC = () => {
         </div>
 
         {/* Liste des canaux sous forme de lignes horizontales ou affichage état vide */}
-        {filteredChannels.length === 0 ? (
+        {isLoading ? (
+          <div className="empty-channels-state">
+            <div className="empty-icon-wrapper">
+              <span className="pulse-dot" style={{ width: 14, height: 14, borderRadius: "50%", background: "#FCA311", display: "inline-block", boxShadow: "0 0 12px #FCA311" }} />
+            </div>
+            <h4>Synchronisation avec Firestore...</h4>
+            <p>Chargement des canaux de discussion en temps réel.</p>
+          </div>
+        ) : filteredChannels.length === 0 ? (
           <div className="empty-channels-state">
             <div className="empty-icon-wrapper">
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
