@@ -1,57 +1,63 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { OnyxLogo } from "../components/OnyxLogo";
 import "./ChannelsPage.scss";
 
-// Structure de données descriptive d'un canal de cours
-interface ChannelPreview {
+// Structure de données descriptive d'un canal de discussion
+export interface Channel {
   id: string;
   name: string;
   description: string;
-  category: string;
+  tags: string[];
   ticketsCount: number;
   postsCount: number;
 }
 
-// Données d'aperçu des premiers canaux de la classe
-const PREVIEW_CHANNELS: ChannelPreview[] = [
-  {
-    id: "web-mobile",
-    name: "Développement Web & Mobile",
-    description: "React, React Native, TypeScript, APIs et architectures modernes.",
-    category: "Projet Principal",
-    ticketsCount: 4,
-    postsCount: 12,
-  },
-  {
-    id: "algo-maths",
-    name: "Algorithmique & Structures",
-    description: "Complexité, arbres, graphes, optimisation et exercices de TD.",
-    category: "Tronc Commun",
-    ticketsCount: 2,
-    postsCount: 7,
-  },
-  {
-    id: "db-cloud",
-    name: "Bases de Données & Cloud",
-    description: "PostgreSQL, Firebase, Firestore, modélisation et requêtes.",
-    category: "Infrastructures",
-    ticketsCount: 3,
-    postsCount: 9,
-  },
-  {
-    id: "entraide-generale",
-    name: "Entraide Générale & Vie de Promo",
-    description: "Partage de ressources de cours, annales, questions diverses et organisation.",
-    category: "Général",
-    ticketsCount: 1,
-    postsCount: 18,
-  },
+// Liste des filtres par tags disponibles pour la recherche
+const AVAILABLE_TAGS: string[] = [
+  "Tous",
+  "Dev Web",
+  "Cybersécurité",
+  "Réseaux & Système",
+  "Bases de Données",
+  "Maths & Algo",
+  "Général",
 ];
 
-// Page principale affichant la liste des channels pour les élèves connectés
+// Page principale affichant l'espace de gestion et de consultation des canaux
 export const ChannelsPage: React.FC = () => {
   const { user, signOutUser } = useAuth();
+
+  // État local pour la requête de recherche textuelle
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // État local pour le tag actuellement sélectionné
+  const [selectedTag, setSelectedTag] = useState("Tous");
+
+  // Liste actuelle des canaux (initialisée vide selon la demande)
+  const [channels] = useState<Channel[]>([]);
+
+  // Filtrage dynamique des canaux selon la recherche textuelle et le tag sélectionné
+  const filteredChannels = channels.filter((channel) => {
+    const matchesSearch =
+      channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      channel.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTag =
+      selectedTag === "Tous" || channel.tags.includes(selectedTag);
+    return matchesSearch && matchesTag;
+  });
+
+  // Gestionnaire de réinitialisation des filtres de recherche
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setSelectedTag("Tous");
+  };
+
+  // Gestionnaire d'action pour la création d'un nouveau canal
+  const handleCreateChannel = () => {
+    // Action prête pour l'ouverture de la modale de création
+    console.log("Action de création de canal déclenchée");
+  };
 
   return (
     <div className="channels-page-container">
@@ -67,7 +73,7 @@ export const ChannelsPage: React.FC = () => {
 
         <div className="topbar-user-area">
           <div className="user-details">
-            <span className="user-name">{user?.displayName || "Élève"}</span>
+            <span className="user-name">{user?.displayName || "Étudiant"}</span>
             <span className="user-email">{user?.email}</span>
           </div>
           <button
@@ -83,58 +89,132 @@ export const ChannelsPage: React.FC = () => {
 
       {/* Contenu principal de l'espace channels */}
       <main className="channels-main-content">
-        {/* Bannière de notification : fonctionnalité en cours de développement */}
-        <section className="construction-banner">
-          <div className="banner-status-tag">
-            <span className="pulse-indicator" />
-            <span>ÉTAPE EN COURS : GESTION DES CHANNELS</span>
+        {/* Section de recherche et de filtres par tags */}
+        <section className="search-filter-section">
+          {/* Barre de recherche avec icône */}
+          <div className="search-bar-wrapper">
+            <span className="search-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Rechercher un canal, une matière, un sujet..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="clear-search-btn"
+                onClick={() => setSearchQuery("")}
+                title="Effacer la recherche"
+              >
+                ✕
+              </button>
+            )}
           </div>
-          <h2>Espace des Channels & Tickets</h2>
-          <p>
-            Vous êtes connecté avec succès à <strong>Onyx Hub</strong> ! Le système d'authentification et de routage est opérationnel. La prochaine étape permettra de créer de vrais canaux, d'y déposer des tickets d'assistance et de publier des posts.
-          </p>
+
+          {/* Liste des tags de filtrage */}
+          <div className="tags-filter-bar">
+            {AVAILABLE_TAGS.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className={`tag-pill ${selectedTag === tag ? "active" : ""}`}
+                onClick={() => setSelectedTag(tag)}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
         </section>
 
-        {/* En-tête de section avec bouton d'action */}
+        {/* En-tête de la liste des canaux avec bouton de création */}
         <div className="channels-section-header">
-          <div>
-            <h3>Canaux de discussion ouverts</h3>
-            <p>Sélectionnez un canal pour consulter les tickets d'aide ou poser une question.</p>
+          <div className="section-title-group">
+            <div className="title-with-badge">
+              <h3>Canaux disponibles</h3>
+              <span className="channels-count-badge">
+                {filteredChannels.length} {filteredChannels.length > 1 ? "canaux" : "canal"}
+              </span>
+            </div>
+            <p>Accédez aux espaces d'échange ou démarrez un nouveau sujet d'entraide.</p>
           </div>
-          <button type="button" className="create-channel-btn" disabled>
-            + Créer un Channel (Bientôt)
+
+          {/* Bouton pour créer un canal */}
+          <button
+            type="button"
+            className="create-channel-btn"
+            onClick={handleCreateChannel}
+          >
+            <span className="btn-icon">+</span>
+            <span>Créer un canal</span>
           </button>
         </div>
 
-        {/* Grille des channels prévisualisés */}
-        <div className="channels-grid">
-          {PREVIEW_CHANNELS.map((channel) => (
-            <article key={channel.id} className="channel-card">
-              <div className="channel-card-header">
-                <span className="channel-category">{channel.category}</span>
-                <span className="channel-hash">#</span>
-              </div>
-              <h4 className="channel-name">{channel.name}</h4>
-              <p className="channel-description">{channel.description}</p>
-              
-              <div className="channel-stats">
-                <div className="stat-item tickets">
-                  <span className="stat-value">{channel.ticketsCount}</span>
-                  <span className="stat-label">Tickets ouverts</span>
-                </div>
-                <div className="stat-item posts">
-                  <span className="stat-value">{channel.postsCount}</span>
-                  <span className="stat-label">Posts</span>
-                </div>
-              </div>
+        {/* Liste des canaux ou affichage de l'état vide */}
+        {filteredChannels.length === 0 ? (
+          <div className="empty-channels-state">
+            <div className="empty-icon-wrapper">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                <line x1="9" y1="7" x2="15" y2="7" />
+                <line x1="9" y1="11" x2="13" y2="11" />
+              </svg>
+            </div>
 
-              <div className="channel-card-footer">
-                <span className="channel-enter-text">Accéder au channel →</span>
-              </div>
-            </article>
-          ))}
-        </div>
+            {searchQuery || selectedTag !== "Tous" ? (
+              <>
+                <h4>Aucun canal correspondant</h4>
+                <p>Aucun canal ne correspond à vos critères de recherche actuels.</p>
+                <button
+                  type="button"
+                  className="reset-filters-btn"
+                  onClick={handleResetFilters}
+                >
+                  Réinitialiser les filtres
+                </button>
+              </>
+            ) : (
+              <>
+                <h4>Aucun canal pour le moment</h4>
+                <p>
+                  Soyez le premier à créer un canal pour échanger des cours, poser des questions ou ouvrir des tickets d'assistance.
+                </p>
+                <button
+                  type="button"
+                  className="create-first-channel-btn"
+                  onClick={handleCreateChannel}
+                >
+                  + Créer le premier canal
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="channels-grid">
+            {filteredChannels.map((channel) => (
+              <article key={channel.id} className="channel-card">
+                <div className="channel-card-header">
+                  <span className="channel-tags">{channel.tags.join(" • ")}</span>
+                  <span className="channel-hash">#</span>
+                </div>
+                <h4 className="channel-name">{channel.name}</h4>
+                <p className="channel-description">{channel.description}</p>
+                <div className="channel-card-footer">
+                  <span className="channel-enter-text">Accéder au channel →</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
 };
+
