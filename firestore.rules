@@ -262,16 +262,49 @@ service cloud.firestore {
                     && isOwner(request.resource.data.authorId)
                     && isValidNewTicket(request.resource.data);
 
-      // Update: reserved to the ticket author (status change or content edit).
+      // Update (1): reserved to the ticket author (status change or content edit).
+      // Update (2): any channel member may shift repliesCount by one (batched with a reply write).
       allow update: if isAuthenticated()
                     && canAccessChannel(resource.data.channelId)
-                    && isOwner(resource.data.authorId)
-                    && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-                         && request.resource.data.status in ['open', 'in_progress', 'resolved'])
-                        || isValidTicketEdit());
+                    && ((isOwner(resource.data.authorId)
+                         && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                              && request.resource.data.status in ['open', 'in_progress', 'resolved'])
+                             || isValidTicketEdit()))
+                        || isCounterStep('repliesCount'));
 
       allow delete: if isAuthenticated()
                     && isOwner(resource.data.authorId);
+
+      // -----------------------------------------------------------------------
+      // Subcollection: replies (Réponses des membres du canal à un ticket)
+      // -----------------------------------------------------------------------
+      match /replies/{replyId} {
+        // Access follows the parent ticket's channel
+        function canAccessTicket() {
+          return exists(/databases/$(database)/documents/tickets/$(ticketId))
+              && canAccessChannel(get(/databases/$(database)/documents/tickets/$(ticketId)).data.channelId);
+        }
+
+        allow read: if isAuthenticated() && canAccessTicket();
+
+        // Create: author must be the caller, strict schema, server timestamp.
+        allow create: if isAuthenticated()
+                      && canAccessTicket()
+                      && isOwner(request.resource.data.authorId)
+                      && request.resource.data.keys().hasAll(['content', 'authorId', 'authorName', 'createdAt'])
+                      && request.resource.data.keys().hasOnly(['content', 'authorId', 'authorName', 'createdAt'])
+                      && request.resource.data.content is string
+                      && request.resource.data.content.size() > 0
+                      && request.resource.data.content.size() <= 3000
+                      && request.resource.data.authorName is string
+                      && request.resource.data.authorName.size() > 0
+                      && request.resource.data.authorName.size() <= 100
+                      && request.resource.data.createdAt == request.time;
+
+        // Replies are immutable; only their author may delete them.
+        allow update: if false;
+        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+      }
     }
   }
 }
