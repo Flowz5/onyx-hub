@@ -193,6 +193,12 @@
         color: $color-white;
       }
 
+      // Mention d'une solution retenue, aux couleurs du statut « Résolu »
+      .solution-flag {
+        margin-left: 0.3rem;
+        color: #C084FC;
+      }
+
       &.open .chevron {
         transform: rotate(180deg);
       }
