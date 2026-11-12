@@ -17,31 +17,50 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { ThreadKind, ThreadMessage } from "../types/thread";
+import {
+  buildThreadNotificationData,
+  newNotificationRef,
+  type NotificationParent,
+} from "./notificationService";
 
 // Correspondance entre type de fil, sous-collection et compteur du document parent
-const THREAD_CONFIG: Record<ThreadKind, { subcollection: string; counterField: string }> = {
-  tickets: { subcollection: "replies", counterField: "repliesCount" },
-  posts: { subcollection: "comments", counterField: "commentsCount" },
+const THREAD_CONFIG: Record<
+  ThreadKind,
+  { subcollection: string; counterField: string; notificationType: "ticket_reply" | "post_comment" }
+> = {
+  tickets: { subcollection: "replies", counterField: "repliesCount", notificationType: "ticket_reply" },
+  posts: { subcollection: "comments", counterField: "commentsCount", notificationType: "post_comment" },
 };
 
 // Ajout d'un message dans un fil.
-// L'écriture est atomique : le message est créé et le compteur du parent incrémenté.
+// L'écriture est atomique : le message est créé, le compteur du parent incrémenté
+// et l'auteur du parent notifié (sauf s'il répond lui-même).
 export const addThreadMessage = async (
   kind: ThreadKind,
-  parentId: string,
+  parent: NotificationParent & { id: string },
   content: string,
   user: { uid: string; displayName?: string | null; email?: string | null }
 ): Promise<void> => {
-  const { subcollection, counterField } = THREAD_CONFIG[kind];
-  const messageRef = doc(collection(db, kind, parentId, subcollection));
+  const { subcollection, counterField, notificationType } = THREAD_CONFIG[kind];
+  const authorName = user.displayName || user.email || "Étudiant";
+  const messageRef = doc(collection(db, kind, parent.id, subcollection));
   const batch = writeBatch(db);
   batch.set(messageRef, {
     content,
     authorId: user.uid,
-    authorName: user.displayName || user.email || "Étudiant",
+    authorName,
     createdAt: serverTimestamp(),
   });
-  batch.update(doc(db, kind, parentId), { [counterField]: increment(1) });
+  batch.update(doc(db, kind, parent.id), { [counterField]: increment(1) });
+  if (parent.authorId && parent.authorId !== user.uid) {
+    batch.set(
+      newNotificationRef(),
+      buildThreadNotificationData(notificationType, parent.id, messageRef.id, parent, {
+        uid: user.uid,
+        name: authorName,
+      })
+    );
+  }
   await batch.commit();
 };
 

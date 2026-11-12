@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Post } from "../types/post";
 import "./PostCard.scss";
 import { RichContent } from "./RichContent";
@@ -13,6 +13,8 @@ interface PostCardProps {
   onDelete?: (postId: string) => void;
   // Ouverture de la modale d'édition (auteur uniquement)
   onEdit?: (post: Post) => void;
+  // Mise en avant depuis une notification : la carte défile à l'écran, avec son fil ouvert si besoin
+  focus?: "card" | "thread" | null;
 }
 
 // Composant représentant une publication dans le flux Reddit-like
@@ -22,11 +24,20 @@ export const PostCard: React.FC<PostCardProps> = ({
   onUpvote,
   onDelete,
   onEdit,
+  focus = null,
 }) => {
   const isAuthor = currentUserId && post.authorId === currentUserId;
   const isUpvoted = Boolean(currentUserId && post.upvotedBy.includes(currentUserId));
   // Affichage du fil de commentaires (chargé uniquement à l'ouverture)
   const [areCommentsOpen, setAreCommentsOpen] = useState(false);
+  const cardRef = useRef<HTMLElement>(null);
+
+  // Arrivée depuis une notification : ouverture du fil puis défilement jusqu'à la carte
+  useEffect(() => {
+    if (!focus) return;
+    if (focus === "thread") setAreCommentsOpen(true);
+    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focus]);
 
   // Formatage de la date en français
   const formattedDate = new Date(post.createdAt).toLocaleDateString("fr-FR", {
@@ -56,7 +67,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   };
 
   return (
-    <article className="post-card-item">
+    <article ref={cardRef} className={`post-card-item ${focus ? "is-focused" : ""}`}>
       {/* Colonne de vote Reddit-like */}
       <div className="upvote-column">
         <button
@@ -154,7 +165,13 @@ export const PostCard: React.FC<PostCardProps> = ({
 
         {/* Fil de commentaires déplié */}
         {areCommentsOpen && (
-          <DiscussionThread kind="posts" parentId={post.id} parentAuthorId={post.authorId} />
+          <DiscussionThread
+            kind="posts"
+            parentId={post.id}
+            parentAuthorId={post.authorId}
+            parentTitle={post.title}
+            channelId={post.channelId}
+          />
         )}
       </div>
     </article>

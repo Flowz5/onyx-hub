@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { OnyxLogo } from "../components/OnyxLogo";
 import { ChannelTabSelector, type ChannelActiveTab } from "../components/ChannelTabSelector";
@@ -11,6 +11,7 @@ import { CreateTicketModal } from "../components/CreateTicketModal";
 import type { Channel } from "../types/channel";
 import type { Post, NewPostFormData } from "../types/post";
 import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
+import type { NotificationFocus } from "../types/notification";
 import { getChannelById, updateChannelMembers } from "../services/channelService";
 import {
   createPostInFirestore,
@@ -30,12 +31,18 @@ import "./ChannelDetailPage.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { ArrowLeft, Lock, MessagesSquare, Plus, Ticket as TicketIcon, Users } from "lucide-react";
 import { ChannelMembersModal } from "../components/ChannelMembersModal";
+import { NotificationCenter } from "../components/NotificationCenter";
 
 // Page principale dédiée à la consultation intérieure d'un canal (Posts & Tickets)
 export const ChannelDetailPage: React.FC = () => {
   const { channelId } = useParams<{ channelId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, signOutUser } = useAuth();
+
+  // Post ou ticket ciblé par une notification (transmis dans l'état de navigation)
+  const notificationFocus =
+    (location.state as { notificationFocus?: NotificationFocus } | null)?.notificationFocus ?? null;
 
   // Données du canal
   const [channel, setChannel] = useState<Channel | null>(null);
@@ -91,6 +98,22 @@ export const ChannelDetailPage: React.FC = () => {
       isMounted = false;
     };
   }, [channelId]);
+
+  // Arrivée depuis une notification : bon onglet et filtres réinitialisés pour afficher la carte ciblée
+  useEffect(() => {
+    if (!notificationFocus) return;
+    setActiveTab(notificationFocus.tab);
+    setSearchQuery("");
+    setSelectedTag("Tous");
+    setTicketStatusFilter("all");
+    // L'état de navigation est un nouvel objet à chaque navigation, même vers la même cible
+  }, [notificationFocus]);
+
+  // Mise en avant d'une carte du flux lorsqu'elle est la cible de la notification
+  const getCardFocus = (id: string): "card" | "thread" | null => {
+    if (!notificationFocus || notificationFocus.targetId !== id) return null;
+    return notificationFocus.openThread ? "thread" : "card";
+  };
 
   // 2. Écoute en temps réel des posts du canal
   useEffect(() => {
@@ -315,6 +338,7 @@ export const ChannelDetailPage: React.FC = () => {
             <span className="user-name">{user?.displayName || "Étudiant"}</span>
             <span className="user-email">{user?.email}</span>
           </div>
+          <NotificationCenter />
           <button
             type="button"
             className="signout-header-btn"
@@ -468,6 +492,7 @@ export const ChannelDetailPage: React.FC = () => {
                     onUpvote={handleUpvotePost}
                     onDelete={handleDeletePost}
                     onEdit={handleEditPost}
+                    focus={getCardFocus(post.id)}
                   />
                 ))}
               </div>
@@ -504,6 +529,7 @@ export const ChannelDetailPage: React.FC = () => {
                     onUpdateStatus={handleUpdateTicketStatus}
                     onDelete={handleDeleteTicket}
                     onEdit={handleEditTicket}
+                    focus={getCardFocus(ticket.id)}
                   />
                 ))}
               </div>
