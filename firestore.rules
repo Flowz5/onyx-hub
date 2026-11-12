@@ -209,15 +209,18 @@ service cloud.firestore {
     }
 
     // Validates the selection (or removal) of the solution reply by the ticket author.
-    // The chosen reply must exist in the ticket's replies; marking it may also resolve the ticket.
+    // The chosen reply must exist in the ticket's replies and solutionAuthorId must be its author
+    // (credited on the replier's profile); marking it may also resolve the ticket.
     function isValidSolutionChange(ticketId) {
       let data = request.resource.data;
       return isOwner(resource.data.authorId)
-          && data.diff(resource.data).affectedKeys().hasOnly(['solutionReplyId', 'status'])
+          && data.diff(resource.data).affectedKeys().hasOnly(['solutionReplyId', 'solutionAuthorId', 'status'])
           && data.status in ['open', 'in_progress', 'resolved']
-          && (data.solutionReplyId == null
+          && ((data.solutionReplyId == null && data.get('solutionAuthorId', null) == null)
               || (data.solutionReplyId is string
-                  && exists(/databases/$(database)/documents/tickets/$(ticketId)/replies/$(data.solutionReplyId))));
+                  && exists(/databases/$(database)/documents/tickets/$(ticketId)/replies/$(data.solutionReplyId))
+                  && data.get('solutionAuthorId', null)
+                     == get(/databases/$(database)/documents/tickets/$(ticketId)/replies/$(data.solutionReplyId)).data.authorId));
     }
 
     // Validates a brand new ticket (schema, bounds, initial status, server timestamp)
@@ -228,9 +231,11 @@ service cloud.firestore {
              ])
           && data.keys().hasOnly([
                'channelId', 'title', 'description', 'status', 'priority', 'tags',
-               'authorId', 'authorName', 'createdAt', 'repliesCount', 'solutionReplyId'
+               'authorId', 'authorName', 'createdAt', 'repliesCount', 'solutionReplyId',
+               'solutionAuthorId'
              ])
           && (!('solutionReplyId' in data) || data.solutionReplyId == null)
+          && (!('solutionAuthorId' in data) || data.solutionAuthorId == null)
           && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
           && data.description is string && data.description.size() > 0 && data.description.size() <= 10000
@@ -258,8 +263,10 @@ service cloud.firestore {
     // Collection: posts (Discussions et partages style Reddit)
     // -------------------------------------------------------------------------
     match /posts/{postId} {
-      // Read: restricted to members of the parent channel (queries filter on channelId)
-      allow read: if isAuthenticated() && canAccessChannel(resource.data.channelId);
+      // Read: restricted to members of the parent channel (queries filter on channelId),
+      // or to the author (queries filter on authorId, used to initialise profile statistics)
+      allow read: if isAuthenticated()
+                  && (resource.data.authorId == request.auth.uid || canAccessChannel(resource.data.channelId));
 
       // Create: author must be the caller, target channel must exist, schema strictly validated.
       allow create: if isAuthenticated()
@@ -298,8 +305,10 @@ service cloud.firestore {
     // Collection: tickets (Demandes d'aide et d'assistance)
     // -------------------------------------------------------------------------
     match /tickets/{ticketId} {
-      // Read: restricted to members of the parent channel (queries filter on channelId)
-      allow read: if isAuthenticated() && canAccessChannel(resource.data.channelId);
+      // Read: restricted to members of the parent channel (queries filter on channelId),
+      // or to the author (queries filter on authorId, used to initialise profile statistics)
+      allow read: if isAuthenticated()
+                  && (resource.data.authorId == request.auth.uid || canAccessChannel(resource.data.channelId));
 
       // Create: author must be the caller, target channel must exist, schema strictly validated.
       allow create: if isAuthenticated()
@@ -337,6 +346,80 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
       }
+    }
+
+    // -------------------------------------------------------------------------
+    // Domain Validator Functions: User profiles
+    // -------------------------------------------------------------------------
+
+    // Validates the fields a student may edit on their public profile
+    function isValidProfileFields(data) {
+      return data.displayName is string
+          && data.displayName.size() >= 2 && data.displayName.size() <= 40
+          && data.bio is string && data.bio.size() <= 200
+          && (data.photoDataUrl == null
+              || (data.photoDataUrl is string
+                  && data.photoDataUrl.size() <= 120000
+                  && data.photoDataUrl.matches('^data:image/(webp|jpeg);base64,.+$')));
+    }
+
+    // Validates a brand new profile. Post and ticket counters are initialised by the client
+    // from the student's existing content; solutions always start at zero.
+    function isValidNewProfile(data) {
+      return data.keys().hasAll([
+               'displayName', 'bio', 'photoDataUrl',
+               'postsCount', 'ticketsCount', 'solutionsCount', 'createdAt'
+             ])
+          && data.keys().hasOnly([
+               'displayName', 'bio', 'photoDataUrl',
+               'postsCount', 'ticketsCount', 'solutionsCount', 'createdAt'
+             ])
+          && isValidProfileFields(data)
+          && data.postsCount is int && data.postsCount >= 0
+          && data.ticketsCount is int && data.ticketsCount >= 0
+          && data.solutionsCount == 0
+          && data.createdAt == request.time;
+    }
+
+    // Validates a solution credit (+1) or debit (-1) on a student's profile.
+    // The referenced ticket must be updated in the same batch so that its solutionAuthorId
+    // switches to (credit) or away from (debit) this student.
+    function isValidSolutionCounterChange(userId) {
+      let data = request.resource.data;
+      let ticketPath = /databases/$(database)/documents/tickets/$(data.lastSolutionTicketId);
+      return data.diff(resource.data).affectedKeys().hasOnly(['solutionsCount', 'lastSolutionTicketId'])
+          && data.lastSolutionTicketId is string
+          && data.solutionsCount is int && data.solutionsCount >= 0
+          && ((data.solutionsCount == resource.data.solutionsCount + 1
+               && getAfter(ticketPath).data.get('solutionAuthorId', null) == userId
+               && get(ticketPath).data.get('solutionAuthorId', null) != userId)
+           || (data.solutionsCount == resource.data.solutionsCount - 1
+               && get(ticketPath).data.get('solutionAuthorId', null) == userId
+               && getAfter(ticketPath).data.get('solutionAuthorId', null) != userId));
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: users (Profils publics des étudiants)
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      // Read: any signed-in student (avatars and names displayed next to every content)
+      allow read: if isAuthenticated();
+
+      allow create: if isOwner(userId) && isValidNewProfile(request.resource.data);
+
+      // Update (1): the owner edits their name, bio or photo.
+      // Update (2): the owner's post or ticket counter shifts by one (batched with the content write).
+      // Update (3): a ticket author credits or debits the author of a solution.
+      allow update: if (isOwner(userId)
+                        && ((request.resource.data.diff(resource.data).affectedKeys()
+                               .hasOnly(['displayName', 'bio', 'photoDataUrl'])
+                             && isValidProfileFields(request.resource.data))
+                            || isCounterStep('postsCount')
+                            || isCounterStep('ticketsCount')))
+                    || (isAuthenticated() && isValidSolutionCounterChange(userId));
+
+      // Profiles are never deleted from the client
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------------------

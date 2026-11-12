@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { OnyxLogo } from "../components/OnyxLogo";
 import { ChannelTabSelector, type ChannelActiveTab } from "../components/ChannelTabSelector";
 import { FeedSearchBar, type PostSortOption } from "../components/FeedSearchBar";
 import { PostCard } from "../components/PostCard";
@@ -31,14 +30,14 @@ import "./ChannelDetailPage.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { ArrowLeft, Lock, MessagesSquare, Plus, Ticket as TicketIcon, Users } from "lucide-react";
 import { ChannelMembersModal } from "../components/ChannelMembersModal";
-import { NotificationCenter } from "../components/NotificationCenter";
+import { AppTopbar } from "../components/AppTopbar";
 
 // Page principale dédiée à la consultation intérieure d'un canal (Posts & Tickets)
 export const ChannelDetailPage: React.FC = () => {
   const { channelId } = useParams<{ channelId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signOutUser } = useAuth();
+  const { user } = useAuth();
 
   // Post ou ticket ciblé par une notification (transmis dans l'état de navigation)
   const notificationFocus =
@@ -283,9 +282,9 @@ export const ChannelDetailPage: React.FC = () => {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!channelId) return;
+    if (!channelId || !user) return;
     try {
-      await deletePostFromFirestore(postId, channelId);
+      await deletePostFromFirestore(postId, channelId, user.uid);
     } catch (err) {
       console.error("Erreur de suppression du post :", err);
       alert("Impossible de supprimer ce post.");
@@ -303,9 +302,9 @@ export const ChannelDetailPage: React.FC = () => {
   };
 
   const handleDeleteTicket = async (ticketId: string) => {
-    if (!channelId) return;
+    if (!channelId || !user) return;
     try {
-      await deleteTicketFromFirestore(ticketId, channelId);
+      await deleteTicketFromFirestore(ticketId, channelId, user.uid);
     } catch (err) {
       console.error("Erreur de suppression du ticket :", err);
       alert("Impossible de supprimer ce ticket.");
@@ -323,32 +322,8 @@ export const ChannelDetailPage: React.FC = () => {
 
   return (
     <div className="channel-detail-page-container">
-      {/* Barre de navigation supérieure */}
-      <header className="channel-detail-topbar">
-        <div className="topbar-brand" onClick={() => navigate("/channels")} role="button" tabIndex={0}>
-          <OnyxLogo size={40} showHexHalo={false} />
-          <div className="topbar-title">
-            <span className="brand-name">ONYX <strong>HUB</strong></span>
-            <span className="brand-badge">CLASSE ACTIVE</span>
-          </div>
-        </div>
-
-        <div className="topbar-user-area">
-          <div className="user-details">
-            <span className="user-name">{user?.displayName || "Étudiant"}</span>
-            <span className="user-email">{user?.email}</span>
-          </div>
-          <NotificationCenter />
-          <button
-            type="button"
-            className="signout-header-btn"
-            onClick={signOutUser}
-            title="Se déconnecter"
-          >
-            Déconnexion
-          </button>
-        </div>
-      </header>
+      {/* Barre de navigation supérieure commune */}
+      <AppTopbar />
 
       {/* Barre d'en-tête secondaire avec bouton retour */}
       <nav className="channel-sub-nav">

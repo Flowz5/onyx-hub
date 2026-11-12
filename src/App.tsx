@@ -6,6 +6,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { ChannelsPage } from "./pages/ChannelsPage";
 import { ChannelDetailPage } from "./pages/ChannelDetailPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { ProfilePage } from "./pages/ProfilePage";
 
 // Configuration du routeur principal de l'application
 function App() {
@@ -26,6 +27,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/channels" element={<ChannelsPage />} />
             <Route path="/channels/:channelId" element={<ChannelDetailPage />} />
+            <Route path="/profile/:userId" element={<ProfilePage />} />
           </Route>
 
           {/* Redirections automatiques des routes par défaut et inconnues */}

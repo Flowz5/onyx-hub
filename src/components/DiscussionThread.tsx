@@ -4,6 +4,7 @@ import "./DiscussionThread.scss";
 import { BadgeCheck, CircleAlert, CircleCheckBig, Send, Trash2, Undo2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { RichContent } from "./RichContent";
+import { AuthorLink } from "./UserAvatar";
 import { RichTextEditor } from "./RichTextEditor";
 import { MAX_THREAD_MESSAGE_LENGTH, type ThreadKind, type ThreadMessage } from "../types/thread";
 import {
@@ -25,6 +26,8 @@ interface DiscussionThreadProps {
   // Options propres aux tickets : statut résolu et réponse retenue comme solution
   isResolved?: boolean;
   solutionMessageId?: string | null;
+  // Auteur crédité de la solution actuelle (pour le décréditer en cas de changement)
+  solutionAuthorId?: string | null;
 }
 
 // Libellés adaptés au type de fil
@@ -66,6 +69,7 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
   channelId,
   isResolved = false,
   solutionMessageId = null,
+  solutionAuthorId = null,
 }) => {
   const { user } = useAuth();
   const labels = LABELS[kind];
@@ -128,9 +132,14 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
 
   // Désignation ou retrait de la solution par l'auteur du ticket
   const handleToggleSolution = async (messageId: string) => {
-    const nextSolution = messageId === solutionMessageId ? null : messageId;
+    const nextMessage =
+      messageId === solutionMessageId ? null : messages.find((message) => message.id === messageId);
     try {
-      await setTicketSolution(parentId, nextSolution);
+      await setTicketSolution(
+        parentId,
+        nextMessage ? { id: nextMessage.id, authorId: nextMessage.authorId } : null,
+        solutionAuthorId
+      );
     } catch (error) {
       console.error("Erreur lors du marquage de la solution :", error);
       setErrorMessage("Impossible de mettre à jour la solution de ce ticket.");
@@ -183,7 +192,12 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
                   </span>
                 )}
                 <div className="message-meta">
-                  <strong className="message-author">{message.authorName}</strong>
+                  <AuthorLink
+                    uid={message.authorId}
+                    fallbackName={message.authorName}
+                    avatarSize={24}
+                    className="message-author"
+                  />
                   {isParentAuthor && (
                     <span className="author-badge">
                       <BadgeCheck className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
