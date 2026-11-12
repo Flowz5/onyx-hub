@@ -37,7 +37,8 @@
     transition: all 0.22s ease;
 
     .tab-icon {
-      font-size: 1.1rem;
+      display: inline-flex;
+      align-items: center;
     }
 
     .tab-counter-badge {

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import type { NewPostFormData } from "../types/post";
 import "./CreatePostModal.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { Check, CircleAlert, Plus, X } from "lucide-react";
 
 interface CreatePostModalProps {
   isOpen: boolean;
@@ -136,13 +138,13 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             onClick={onClose}
             aria-label="Fermer la modale"
           >
-            ✕
+            <X className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
 
         {errorMessage && (
           <div className="modal-error-banner" role="alert">
-            <span className="error-icon">!</span>
+            <span className="error-icon"><CircleAlert className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" /></span>
             <span>{errorMessage}</span>
           </div>
         )}
@@ -195,7 +197,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                     className="remove-chip-btn"
                     onClick={() => toggleTag(tag)}
                   >
-                    ✕
+                    <X className="onyx-icon" size={12} strokeWidth={2} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -212,7 +214,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                     className={`suggest-tag-btn ${isSelected ? "selected" : ""}`}
                     onClick={() => toggleTag(tag)}
                   >
-                    {isSelected ? "✓ " : "+ "}
+                    {isSelected ? (
+                      <Check className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <Plus className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
+                    )}
                     {tag}
                   </button>
                 );
