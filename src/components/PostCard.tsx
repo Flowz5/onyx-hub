@@ -2,13 +2,15 @@ import React from "react";
 import type { Post } from "../types/post";
 import "./PostCard.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { MessageSquare } from "lucide-react";
+import { ArrowBigUp, MessageSquare, Pencil, Trash2 } from "lucide-react";
 
 interface PostCardProps {
   post: Post;
   currentUserId?: string;
   onUpvote?: (postId: string, isCurrentlyUpvoted: boolean) => void;
   onDelete?: (postId: string) => void;
+  // Ouverture de la modale d'édition (auteur uniquement)
+  onEdit?: (post: Post) => void;
 }
 
 // Composant représentant une publication dans le flux Reddit-like
@@ -17,6 +19,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   currentUserId,
   onUpvote,
   onDelete,
+  onEdit,
 }) => {
   const isAuthor = currentUserId && post.authorId === currentUserId;
   const isUpvoted = Boolean(currentUserId && post.upvotedBy.includes(currentUserId));
@@ -59,7 +62,13 @@ export const PostCard: React.FC<PostCardProps> = ({
           title={isUpvoted ? "Retirer votre vote" : "Voter pour ce post"}
           aria-label="Voter pour ce post"
         >
-          ▲
+          <ArrowBigUp
+            className="onyx-icon"
+            size={20}
+            strokeWidth={2}
+            fill={isUpvoted ? "currentColor" : "none"}
+            aria-hidden="true"
+          />
         </button>
         <span className={`upvote-score ${isUpvoted ? "upvoted" : ""}`}>
           {post.upvotesCount}
@@ -98,16 +107,35 @@ export const PostCard: React.FC<PostCardProps> = ({
             <span>{post.commentsCount} commentaires</span>
           </div>
 
-          {/* Bouton de suppression réservé à l'auteur */}
-          {isAuthor && onDelete && (
-            <button
-              type="button"
-              className="delete-post-btn"
-              onClick={handleDeleteClick}
-              title="Supprimer mon post"
-            >
-              Supprimer
-            </button>
+          {/* Actions réservées à l'auteur : modification et suppression */}
+          {isAuthor && (onEdit || onDelete) && (
+            <div className="author-actions">
+              {onEdit && (
+                <button
+                  type="button"
+                  className="edit-post-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(post);
+                  }}
+                  title="Modifier mon post"
+                  aria-label="Modifier mon post"
+                >
+                  <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  className="delete-post-btn"
+                  onClick={handleDeleteClick}
+                  title="Supprimer mon post"
+                  aria-label="Supprimer mon post"
+                >
+                  <Trash2 className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

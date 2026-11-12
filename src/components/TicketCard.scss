@@ -196,19 +196,51 @@
       }
     }
 
+    // Groupe des actions de l'auteur (modification et suppression)
+    .author-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .edit-ticket-btn,
     .delete-ticket-btn {
-      background: transparent;
-      border: none;
-      color: #F87171;
-      font-size: 0.74rem;
-      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 8px;
       cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 6px;
       transition: all 0.2s ease;
 
       &:hover {
-        background: rgba(239, 68, 68, 0.15);
+        transform: scale(1.08);
+      }
+    }
+
+    .edit-ticket-btn {
+      background: rgba(252, 163, 17, 0.1);
+      border: 1px solid rgba(252, 163, 17, 0.3);
+      color: $color-orange;
+
+      &:hover {
+        background: $color-orange;
+        border-color: $color-orange;
+        color: $color-black;
+      }
+    }
+
+    .delete-ticket-btn {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #F87171;
+
+      &:hover {
+        background: #DC2626;
+        border-color: #DC2626;
+        color: $color-white;
       }
     }
   }
