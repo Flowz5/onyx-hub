@@ -145,26 +145,33 @@ export const ChannelDetailPage: React.FC = () => {
     });
   }, [tickets, searchQuery, ticketStatusFilter, selectedTag]);
 
-  // Actions de création
+  // Actions de création : l'erreur est relayée à la modale, qui l'affiche à l'utilisateur.
+  // Le nouvel élément apparaît ensuite dans le flux via l'écoute temps réel.
   const handleCreatePostSubmit = async (data: NewPostFormData) => {
-    if (!channelId || !user) return;
+    if (!channelId || !user) {
+      throw new Error("Utilisateur ou canal introuvable.");
+    }
     try {
       await createPostInFirestore(channelId, data, user);
       setIsCreatePostModalOpen(false);
+      setActiveTab("posts");
     } catch (err) {
       console.error("Erreur lors de la création du post :", err);
-      alert("Une erreur est survenue lors de la publication du post.");
+      throw err;
     }
   };
 
   const handleCreateTicketSubmit = async (data: NewTicketFormData) => {
-    if (!channelId || !user) return;
+    if (!channelId || !user) {
+      throw new Error("Utilisateur ou canal introuvable.");
+    }
     try {
       await createTicketInFirestore(channelId, data, user);
       setIsCreateTicketModalOpen(false);
+      setActiveTab("tickets");
     } catch (err) {
       console.error("Erreur lors de l'ouverture du ticket :", err);
-      alert("Une erreur est survenue lors de l'ouverture du ticket.");
+      throw err;
     }
   };
 
@@ -179,8 +186,9 @@ export const ChannelDetailPage: React.FC = () => {
   };
 
   const handleDeletePost = async (postId: string) => {
+    if (!channelId) return;
     try {
-      await deletePostFromFirestore(postId);
+      await deletePostFromFirestore(postId, channelId);
     } catch (err) {
       console.error("Erreur de suppression du post :", err);
       alert("Impossible de supprimer ce post.");
@@ -198,8 +206,9 @@ export const ChannelDetailPage: React.FC = () => {
   };
 
   const handleDeleteTicket = async (ticketId: string) => {
+    if (!channelId) return;
     try {
-      await deleteTicketFromFirestore(ticketId);
+      await deleteTicketFromFirestore(ticketId, channelId);
     } catch (err) {
       console.error("Erreur de suppression du ticket :", err);
       alert("Impossible de supprimer ce ticket.");
