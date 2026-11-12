@@ -1,6 +1,8 @@
 import React from "react";
 import type { Channel } from "../types/channel";
 import "./ChannelRow.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { ChevronRight } from "lucide-react";
 
 // Propriétés attendues pour l'affichage d'une ligne de canal
 interface ChannelRowProps {
@@ -104,7 +106,7 @@ export const ChannelRow: React.FC<ChannelRowProps> = ({
 
         {/* Indicateur de navigation vers la page du canal */}
         <span className="enter-channel-chevron" aria-hidden="true">
-          →
+          <ChevronRight className="onyx-icon" size={20} strokeWidth={2} aria-hidden="true" />
         </span>
       </div>
     </article>

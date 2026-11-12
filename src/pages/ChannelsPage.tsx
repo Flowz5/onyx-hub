@@ -12,6 +12,8 @@ import {
   subscribeToChannels,
 } from "../services/channelService";
 import "./ChannelsPage.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { Plus } from "lucide-react";
 
 // Liste des tags thématiques initiaux
 const DEFAULT_TAGS: string[] = [
@@ -221,7 +223,7 @@ export const ChannelsPage: React.FC = () => {
               className="create-channel-btn"
               onClick={() => setIsCreateModalOpen(true)}
             >
-              <span className="btn-icon">+</span>
+              <span className="btn-icon"><Plus className="onyx-icon" size={17} strokeWidth={2} aria-hidden="true" /></span>
               <span>Créer un canal</span>
             </button>
           </div>

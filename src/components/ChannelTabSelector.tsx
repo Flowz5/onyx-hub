@@ -1,5 +1,7 @@
 import React from "react";
 import "./ChannelTabSelector.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { MessagesSquare, Ticket } from "lucide-react";
 
 export type ChannelActiveTab = "posts" | "tickets";
 
@@ -27,7 +29,7 @@ export const ChannelTabSelector: React.FC<ChannelTabSelectorProps> = ({
         className={`tab-item ${activeTab === "posts" ? "active" : ""}`}
         onClick={() => onTabChange("posts")}
       >
-        <span className="tab-icon">💬</span>
+        <span className="tab-icon"><MessagesSquare className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" /></span>
         <span className="tab-label">Posts & Discussions</span>
         <span className="tab-counter-badge">{postsCount}</span>
       </button>
@@ -40,7 +42,7 @@ export const ChannelTabSelector: React.FC<ChannelTabSelectorProps> = ({
         className={`tab-item ${activeTab === "tickets" ? "active" : ""}`}
         onClick={() => onTabChange("tickets")}
       >
-        <span className="tab-icon">🎫</span>
+        <span className="tab-icon"><Ticket className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" /></span>
         <span className="tab-label">Tickets d'entraide</span>
         <span className="tab-counter-badge tickets">{ticketsCount}</span>
       </button>

@@ -2,6 +2,8 @@ import React from "react";
 import type { ChannelActiveTab } from "./ChannelTabSelector";
 import type { TicketStatus } from "../types/ticket";
 import "./FeedSearchBar.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { CircleCheck, CircleDot, Clock3, Flame, Hourglass, Plus, X } from "lucide-react";
 
 export type PostSortOption = "latest" | "popular";
 
@@ -63,7 +65,7 @@ export const FeedSearchBar: React.FC<FeedSearchBarProps> = ({
               onClick={() => onSearchChange("")}
               title="Effacer la recherche"
             >
-              ✕
+              <X className="onyx-icon" size={12} strokeWidth={2} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -74,7 +76,7 @@ export const FeedSearchBar: React.FC<FeedSearchBarProps> = ({
           className="create-feed-item-btn"
           onClick={onOpenCreateModal}
         >
-          <span className="btn-icon">+</span>
+          <span className="btn-icon"><Plus className="onyx-icon" size={17} strokeWidth={2} aria-hidden="true" /></span>
           <span>
             {activeTab === "posts" ? "Nouveau Post" : "Nouveau Ticket"}
           </span>
@@ -91,14 +93,16 @@ export const FeedSearchBar: React.FC<FeedSearchBarProps> = ({
               className={`sort-btn ${postSort === "latest" ? "active" : ""}`}
               onClick={() => onPostSortChange("latest")}
             >
-              ⏰ Plus récents
+              <Clock3 className="onyx-icon onyx-icon--leading" size={14} strokeWidth={2} aria-hidden="true" />
+              Plus récents
             </button>
             <button
               type="button"
               className={`sort-btn ${postSort === "popular" ? "active" : ""}`}
               onClick={() => onPostSortChange("popular")}
             >
-              🔥 Populaires
+              <Flame className="onyx-icon onyx-icon--leading" size={14} strokeWidth={2} aria-hidden="true" />
+              Populaires
             </button>
           </div>
         ) : (
@@ -115,21 +119,24 @@ export const FeedSearchBar: React.FC<FeedSearchBarProps> = ({
               className={`status-filter-btn open ${ticketStatusFilter === "open" ? "active" : ""}`}
               onClick={() => onTicketStatusFilterChange("open")}
             >
-              🟢 Ouverts
+              <CircleDot className="onyx-icon onyx-icon--leading" size={14} strokeWidth={2} aria-hidden="true" />
+              Ouverts
             </button>
             <button
               type="button"
               className={`status-filter-btn in-progress ${ticketStatusFilter === "in_progress" ? "active" : ""}`}
               onClick={() => onTicketStatusFilterChange("in_progress")}
             >
-              🟡 En cours
+              <Hourglass className="onyx-icon onyx-icon--leading" size={14} strokeWidth={2} aria-hidden="true" />
+              En cours
             </button>
             <button
               type="button"
               className={`status-filter-btn resolved ${ticketStatusFilter === "resolved" ? "active" : ""}`}
               onClick={() => onTicketStatusFilterChange("resolved")}
             >
-              🟣 Résolus
+              <CircleCheck className="onyx-icon onyx-icon--leading" size={14} strokeWidth={2} aria-hidden="true" />
+              Résolus
             </button>
           </div>
         )}

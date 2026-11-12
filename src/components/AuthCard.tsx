@@ -9,6 +9,8 @@ import {
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../services/firebase";
 import { OnyxLogo } from "./OnyxLogo";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { X } from "lucide-react";
 
 // Composant principal de la page d'authentification (Connexion & Inscription)
 export const AuthCard: React.FC = () => {
@@ -439,7 +441,7 @@ export const AuthCard: React.FC = () => {
                 onClick={() => setShowForgotModal(false)}
                 title="Fermer"
               >
-                ✕
+                <X className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
 

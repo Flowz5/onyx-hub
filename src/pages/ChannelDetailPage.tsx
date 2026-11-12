@@ -25,6 +25,8 @@ import {
   subscribeToChannelTickets,
 } from "../services/ticketService";
 import "./ChannelDetailPage.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { ArrowLeft, MessagesSquare, Plus, Ticket as TicketIcon } from "lucide-react";
 
 // Page principale dédiée à la consultation intérieure d'un canal (Posts & Tickets)
 export const ChannelDetailPage: React.FC = () => {
@@ -243,7 +245,7 @@ export const ChannelDetailPage: React.FC = () => {
           className="back-to-channels-btn"
           onClick={() => navigate("/channels")}
         >
-          <span className="back-arrow">←</span>
+          <span className="back-arrow"><ArrowLeft className="onyx-icon" size={16} strokeWidth={2} aria-hidden="true" /></span>
           <span>Retour aux canaux</span>
         </button>
         <div className="current-channel-crumb">
@@ -314,7 +316,7 @@ export const ChannelDetailPage: React.FC = () => {
           <div className="feed-scrollable-container">
             {filteredPosts.length === 0 ? (
               <div className="empty-feed-card">
-                <span className="empty-emoji">💬</span>
+                <span className="empty-icon"><MessagesSquare className="onyx-icon" size={40} strokeWidth={2} aria-hidden="true" /></span>
                 <h4>Aucun post dans ce canal pour l'instant</h4>
                 <p>
                   Soyez le premier à partager une astuce, une ressource ou poser une question !
@@ -324,7 +326,8 @@ export const ChannelDetailPage: React.FC = () => {
                   className="empty-cta-btn"
                   onClick={() => setIsCreatePostModalOpen(true)}
                 >
-                  + Créer le premier post
+                  <Plus className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                  Créer le premier post
                 </button>
               </div>
             ) : (
@@ -348,7 +351,7 @@ export const ChannelDetailPage: React.FC = () => {
           <div className="feed-scrollable-container">
             {filteredTickets.length === 0 ? (
               <div className="empty-feed-card">
-                <span className="empty-emoji">🎫</span>
+                <span className="empty-icon"><TicketIcon className="onyx-icon" size={40} strokeWidth={2} aria-hidden="true" /></span>
                 <h4>Aucun ticket d'assistance en attente</h4>
                 <p>
                   Un problème sur un TP, un bug de code ou un point de cours bloquant ? Ouvrez un ticket !
@@ -358,7 +361,8 @@ export const ChannelDetailPage: React.FC = () => {
                   className="empty-cta-btn"
                   onClick={() => setIsCreateTicketModalOpen(true)}
                 >
-                  + Ouvrir un ticket d'aide
+                  <Plus className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                  Ouvrir un ticket d'aide
                 </button>
               </div>
             ) : (

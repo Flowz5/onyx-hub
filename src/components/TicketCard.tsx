@@ -10,10 +10,10 @@ interface TicketCardProps {
 }
 
 // Libellés conviviaux pour les statuts
-const STATUS_LABELS: Record<TicketStatus, { label: string; icon: string }> = {
-  open: { label: "Ouvert", icon: "🟢" },
-  in_progress: { label: "En cours", icon: "🟡" },
-  resolved: { label: "Résolu", icon: "🟣" },
+const STATUS_LABELS: Record<TicketStatus, { label: string }> = {
+  open: { label: "Ouvert" },
+  in_progress: { label: "En cours" },
+  resolved: { label: "Résolu" },
 };
 
 // Libellés conviviaux pour les priorités
@@ -110,9 +110,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
               }
             }}
           >
-            <option value="open">🟢 Ouvert</option>
-            <option value="in_progress">🟡 En cours</option>
-            <option value="resolved">🟣 Résolu</option>
+            <option value="open">Ouvert</option>
+            <option value="in_progress">En cours</option>
+            <option value="resolved">Résolu</option>
           </select>
         </div>
 

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from "react";
 import "./ChannelSearchBar.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { X } from "lucide-react";
 
 // Propriétés attendues pour le composant de recherche et de filtrage par tags
 interface ChannelSearchBarProps {
@@ -58,7 +60,7 @@ export const ChannelSearchBar: React.FC<ChannelSearchBarProps> = ({
             onClick={() => onSearchChange("")}
             title="Effacer la recherche de canaux"
           >
-            ✕
+            <X className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
           </button>
         )}
       </div>
@@ -87,7 +89,7 @@ export const ChannelSearchBar: React.FC<ChannelSearchBarProps> = ({
               onClick={() => setTagSearchQuery("")}
               title="Effacer le filtre de tags"
             >
-              ✕
+              <X className="onyx-icon" size={12} strokeWidth={2} aria-hidden="true" />
             </button>
           )}
         </div>

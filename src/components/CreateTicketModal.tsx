@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import type { NewTicketFormData, TicketPriority } from "../types/ticket";
 import "./CreateTicketModal.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { Check, CircleAlert, Plus, SignalHigh, SignalLow, SignalMedium, X } from "lucide-react";
 
 interface CreateTicketModalProps {
   isOpen: boolean;
@@ -126,13 +128,13 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
             onClick={onClose}
             aria-label="Fermer la modale"
           >
-            ✕
+            <X className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
 
         {errorMessage && (
           <div className="modal-error-banner" role="alert">
-            <span className="error-icon">!</span>
+            <span className="error-icon"><CircleAlert className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" /></span>
             <span>{errorMessage}</span>
           </div>
         )}
@@ -165,21 +167,24 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
                 className={`priority-btn low ${priority === "low" ? "active" : ""}`}
                 onClick={() => setPriority("low")}
               >
-                🔵 Faible
+                <SignalLow className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                Faible
               </button>
               <button
                 type="button"
                 className={`priority-btn medium ${priority === "medium" ? "active" : ""}`}
                 onClick={() => setPriority("medium")}
               >
-                🟠 Normale
+                <SignalMedium className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                Normale
               </button>
               <button
                 type="button"
                 className={`priority-btn high ${priority === "high" ? "active" : ""}`}
                 onClick={() => setPriority("high")}
               >
-                🔴 Urgente
+                <SignalHigh className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                Urgente
               </button>
             </div>
           </div>
@@ -212,7 +217,7 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
                     className="remove-chip-btn"
                     onClick={() => toggleTag(tag)}
                   >
-                    ✕
+                    <X className="onyx-icon" size={12} strokeWidth={2} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -229,7 +234,11 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
                     className={`suggest-tag-btn ${isSelected ? "selected" : ""}`}
                     onClick={() => toggleTag(tag)}
                   >
-                    {isSelected ? "✓ " : "+ "}
+                    {isSelected ? (
+                      <Check className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <Plus className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
+                    )}
                     {tag}
                   </button>
                 );
