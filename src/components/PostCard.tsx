@@ -1,6 +1,8 @@
 import React from "react";
 import type { Post } from "../types/post";
 import "./PostCard.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { MessageSquare } from "lucide-react";
 
 interface PostCardProps {
   post: Post;
@@ -92,7 +94,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         {/* Pied de carte avec actions */}
         <div className="post-footer">
           <div className="comments-indicator">
-            <span className="icon">💬</span>
+            <span className="icon"><MessageSquare className="onyx-icon" size={15} strokeWidth={2} aria-hidden="true" /></span>
             <span>{post.commentsCount} commentaires</span>
           </div>
 
