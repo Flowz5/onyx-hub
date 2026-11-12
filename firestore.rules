@@ -187,6 +187,23 @@ service cloud.firestore {
                && request.resource.data.upvotesCount == resource.data.upvotesCount - 1));
     }
 
+    // Validates an upvote toggle on a ticket reply or post comment by another student.
+    // Messages created before votes existed have no counter yet: defaults apply.
+    function isValidThreadMessageUpvoteToggle() {
+      let before = resource.data.get('upvotedBy', []).toSet();
+      let after = request.resource.data.upvotedBy.toSet();
+      let me = [request.auth.uid].toSet();
+      let previousCount = resource.data.get('upvotesCount', 0);
+      return resource.data.authorId != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotesCount', 'upvotedBy'])
+          && request.resource.data.upvotedBy is list
+          && request.resource.data.upvotesCount is int
+          && ((after.difference(before) == me && before.difference(after).size() == 0
+               && request.resource.data.upvotesCount == previousCount + 1)
+           || (before.difference(after) == me && after.difference(before).size() == 0
+               && request.resource.data.upvotesCount == previousCount - 1));
+    }
+
     // Validates an author edit of a post: only title, content and tags may change
     function isValidPostEdit() {
       let data = request.resource.data;
@@ -209,15 +226,18 @@ service cloud.firestore {
     }
 
     // Validates the selection (or removal) of the solution reply by the ticket author.
-    // The chosen reply must exist in the ticket's replies; marking it may also resolve the ticket.
+    // The chosen reply must exist in the ticket's replies and solutionAuthorId must be its author
+    // (credited on the replier's profile); marking it may also resolve the ticket.
     function isValidSolutionChange(ticketId) {
       let data = request.resource.data;
       return isOwner(resource.data.authorId)
-          && data.diff(resource.data).affectedKeys().hasOnly(['solutionReplyId', 'status'])
+          && data.diff(resource.data).affectedKeys().hasOnly(['solutionReplyId', 'solutionAuthorId', 'status'])
           && data.status in ['open', 'in_progress', 'resolved']
-          && (data.solutionReplyId == null
+          && ((data.solutionReplyId == null && data.get('solutionAuthorId', null) == null)
               || (data.solutionReplyId is string
-                  && exists(/databases/$(database)/documents/tickets/$(ticketId)/replies/$(data.solutionReplyId))));
+                  && exists(/databases/$(database)/documents/tickets/$(ticketId)/replies/$(data.solutionReplyId))
+                  && data.get('solutionAuthorId', null)
+                     == get(/databases/$(database)/documents/tickets/$(ticketId)/replies/$(data.solutionReplyId)).data.authorId));
     }
 
     // Validates a brand new ticket (schema, bounds, initial status, server timestamp)
@@ -228,9 +248,11 @@ service cloud.firestore {
              ])
           && data.keys().hasOnly([
                'channelId', 'title', 'description', 'status', 'priority', 'tags',
-               'authorId', 'authorName', 'createdAt', 'repliesCount', 'solutionReplyId'
+               'authorId', 'authorName', 'createdAt', 'repliesCount', 'solutionReplyId',
+               'solutionAuthorId'
              ])
           && (!('solutionReplyId' in data) || data.solutionReplyId == null)
+          && (!('solutionAuthorId' in data) || data.solutionAuthorId == null)
           && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
           && data.description is string && data.description.size() > 0 && data.description.size() <= 10000
@@ -258,8 +280,10 @@ service cloud.firestore {
     // Collection: posts (Discussions et partages style Reddit)
     // -------------------------------------------------------------------------
     match /posts/{postId} {
-      // Read: restricted to members of the parent channel (queries filter on channelId)
-      allow read: if isAuthenticated() && canAccessChannel(resource.data.channelId);
+      // Read: restricted to members of the parent channel (queries filter on channelId),
+      // or to the author (queries filter on authorId, used to initialise profile statistics)
+      allow read: if isAuthenticated()
+                  && (resource.data.authorId == request.auth.uid || canAccessChannel(resource.data.channelId));
 
       // Create: author must be the caller, target channel must exist, schema strictly validated.
       allow create: if isAuthenticated()
@@ -288,9 +312,12 @@ service cloud.firestore {
         allow read: if isAuthenticated() && canAccessPost();
         allow create: if isAuthenticated() && canAccessPost() && isValidNewThreadMessage();
 
-        // Comments are immutable; only their author may delete them.
-        allow update: if false;
-        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+        // Comments are immutable, except for upvotes by other channel members.
+        // Delete: the comment author, or the post author (comments removed along with the post).
+        allow update: if isAuthenticated() && canAccessPost() && isValidThreadMessageUpvoteToggle();
+        allow delete: if isAuthenticated()
+                      && (isOwner(resource.data.authorId)
+                          || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
       }
     }
 
@@ -298,8 +325,10 @@ service cloud.firestore {
     // Collection: tickets (Demandes d'aide et d'assistance)
     // -------------------------------------------------------------------------
     match /tickets/{ticketId} {
-      // Read: restricted to members of the parent channel (queries filter on channelId)
-      allow read: if isAuthenticated() && canAccessChannel(resource.data.channelId);
+      // Read: restricted to members of the parent channel (queries filter on channelId),
+      // or to the author (queries filter on authorId, used to initialise profile statistics)
+      allow read: if isAuthenticated()
+                  && (resource.data.authorId == request.auth.uid || canAccessChannel(resource.data.channelId));
 
       // Create: author must be the caller, target channel must exist, schema strictly validated.
       allow create: if isAuthenticated()
@@ -333,17 +362,96 @@ service cloud.firestore {
         allow read: if isAuthenticated() && canAccessTicket();
         allow create: if isAuthenticated() && canAccessTicket() && isValidNewThreadMessage();
 
-        // Replies are immutable; only their author may delete them.
-        allow update: if false;
-        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+        // Replies are immutable, except for upvotes by other channel members.
+        // Delete: the reply author, or the ticket author (replies removed along with the ticket).
+        allow update: if isAuthenticated() && canAccessTicket() && isValidThreadMessageUpvoteToggle();
+        allow delete: if isAuthenticated()
+                      && (isOwner(resource.data.authorId)
+                          || get(/databases/$(database)/documents/tickets/$(ticketId)).data.authorId == request.auth.uid);
       }
+    }
+
+    // -------------------------------------------------------------------------
+    // Domain Validator Functions: User profiles
+    // -------------------------------------------------------------------------
+
+    // Validates the fields a student may edit on their public profile
+    function isValidProfileFields(data) {
+      return data.displayName is string
+          && data.displayName.size() >= 2 && data.displayName.size() <= 40
+          && data.bio is string && data.bio.size() <= 200
+          && (data.photoDataUrl == null
+              || (data.photoDataUrl is string
+                  && data.photoDataUrl.size() <= 120000
+                  && data.photoDataUrl.matches('^data:image/(webp|jpeg);base64,.+$')));
+    }
+
+    // Validates a brand new profile. Post and ticket counters are initialised by the client
+    // from the student's existing content; solutions always start at zero.
+    function isValidNewProfile(data) {
+      return data.keys().hasAll([
+               'displayName', 'bio', 'photoDataUrl',
+               'postsCount', 'ticketsCount', 'solutionsCount', 'createdAt'
+             ])
+          && data.keys().hasOnly([
+               'displayName', 'bio', 'photoDataUrl',
+               'postsCount', 'ticketsCount', 'solutionsCount', 'createdAt'
+             ])
+          && isValidProfileFields(data)
+          && data.postsCount is int && data.postsCount >= 0
+          && data.ticketsCount is int && data.ticketsCount >= 0
+          && data.solutionsCount == 0
+          && data.createdAt == request.time;
+    }
+
+    // Validates a solution credit (+1) or debit (-1) on a student's profile.
+    // The referenced ticket must be updated in the same batch so that its solutionAuthorId
+    // switches to (credit) or away from (debit) this student.
+    function isValidSolutionCounterChange(userId) {
+      let data = request.resource.data;
+      let ticketPath = /databases/$(database)/documents/tickets/$(data.lastSolutionTicketId);
+      return data.diff(resource.data).affectedKeys().hasOnly(['solutionsCount', 'lastSolutionTicketId'])
+          && data.lastSolutionTicketId is string
+          && data.solutionsCount is int && data.solutionsCount >= 0
+          && ((data.solutionsCount == resource.data.solutionsCount + 1
+               && getAfter(ticketPath).data.get('solutionAuthorId', null) == userId
+               && get(ticketPath).data.get('solutionAuthorId', null) != userId)
+           || (data.solutionsCount == resource.data.solutionsCount - 1
+               && get(ticketPath).data.get('solutionAuthorId', null) == userId
+               && getAfter(ticketPath).data.get('solutionAuthorId', null) != userId));
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: users (Profils publics des étudiants)
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      // Read: any signed-in student (avatars and names displayed next to every content)
+      allow read: if isAuthenticated();
+
+      allow create: if isOwner(userId) && isValidNewProfile(request.resource.data);
+
+      // Update (1): the owner edits their name, bio or photo.
+      // Update (2): the owner's post or ticket counter shifts by one (batched with the content write).
+      // Update (3): a ticket author credits or debits the author of a solution.
+      allow update: if (isOwner(userId)
+                        && ((request.resource.data.diff(resource.data).affectedKeys()
+                               .hasOnly(['displayName', 'bio', 'photoDataUrl'])
+                             && isValidProfileFields(request.resource.data))
+                            || isCounterStep('postsCount')
+                            || isCounterStep('ticketsCount')))
+                    || (isAuthenticated() && isValidSolutionCounterChange(userId));
+
+      // Profiles are never deleted from the client
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------------------
     // Domain Validator Functions: Notifications
     // -------------------------------------------------------------------------
 
-    // Common schema of a thread notification (reply to a ticket or comment on a post)
+    // Common schema of a notification (reply, comment or mention).
+    // messageId is null for a mention in the body of a post or ticket;
+    // recipientEmail is only set for a mention of an invited member of a private channel.
     function isValidNotificationShape(data) {
       return data.keys().hasAll([
                'recipientId', 'actorId', 'actorName', 'type', 'parentId', 'messageId',
@@ -351,13 +459,13 @@ service cloud.firestore {
              ])
           && data.keys().hasOnly([
                'recipientId', 'actorId', 'actorName', 'type', 'parentId', 'messageId',
-               'parentTitle', 'channelId', 'createdAt', 'read'
+               'parentTitle', 'channelId', 'createdAt', 'read', 'recipientEmail'
              ])
           && isOwner(data.actorId)
           && data.recipientId is string && data.recipientId != request.auth.uid
           && data.actorName is string && data.actorName.size() > 0 && data.actorName.size() <= 100
           && data.parentId is string && data.parentId.size() > 0
-          && data.messageId is string && data.messageId.size() > 0
+          && (data.messageId == null || (data.messageId is string && data.messageId.size() > 0))
           && data.createdAt == request.time
           && data.read == false;
     }
@@ -372,10 +480,59 @@ service cloud.firestore {
           && existsAfter(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)/$(subcollection)/$(data.messageId));
     }
 
+    // Checks that a Markdown content mentions the recipient: @[Name](/profile/<uid>)
+    function mentionsRecipient(content, recipientId) {
+      return content is string
+          && content.matches('[\\s\\S]*@\\[[^\\]]*\\]\\(/profile/' + recipientId + '\\)[\\s\\S]*');
+    }
+
+    // The mentioned student must be able to read the channel: public channel, its creator,
+    // or an invited member whose e-mail is registered in the e-mail directory under their uid.
+    function canRecipientAccessChannel(data) {
+      let channel = get(/databases/$(database)/documents/channels/$(data.channelId)).data;
+      return channel.visibility == 'public'
+          || channel.creatorId == data.recipientId
+          || (data.get('recipientEmail', null) is string
+              && data.recipientEmail in channel.memberEmails
+              && get(/databases/$(database)/documents/emailIndex/$(data.recipientEmail)).data.uid == data.recipientId);
+    }
+
+    // Mention in the body of a post (content) or ticket (description) created in the same batch
+    function isValidBodyMention(data, parentCollection, contentField) {
+      let parent = getAfter(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)).data;
+      return data.messageId == null
+          && parent.authorId == request.auth.uid
+          && parent.createdAt == request.time
+          && parent.title == data.parentTitle
+          && parent.channelId == data.channelId
+          && mentionsRecipient(parent[contentField], data.recipientId);
+    }
+
+    // Mention in a reply or comment created in the same batch
+    function isValidMessageMention(data, parentCollection, subcollection) {
+      let parent = get(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)).data;
+      let message = getAfter(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)/$(subcollection)/$(data.messageId)).data;
+      return message.authorId == request.auth.uid
+          && message.createdAt == request.time
+          && parent.title == data.parentTitle
+          && parent.channelId == data.channelId
+          && mentionsRecipient(message.content, data.recipientId);
+    }
+
+    function isValidMentionNotification(data, parentCollection, contentField, subcollection) {
+      return canRecipientAccessChannel(data)
+          && ((data.messageId == null && isValidBodyMention(data, parentCollection, contentField))
+              || (data.messageId is string && isValidMessageMention(data, parentCollection, subcollection)));
+    }
+
     function isValidNewNotification(data) {
       return isValidNotificationShape(data)
           && ((data.type == 'ticket_reply' && matchesThreadParent(data, 'tickets', 'replies'))
-              || (data.type == 'post_comment' && matchesThreadParent(data, 'posts', 'comments')));
+              || (data.type == 'post_comment' && matchesThreadParent(data, 'posts', 'comments'))
+              || (data.type == 'post_mention'
+                  && isValidMentionNotification(data, 'posts', 'content', 'comments'))
+              || (data.type == 'ticket_mention'
+                  && isValidMentionNotification(data, 'tickets', 'description', 'replies')));
     }
 
     // Validates the notification preferences and read state of a user
@@ -384,10 +541,11 @@ service cloud.firestore {
           && data.keys().hasOnly(['preferences', 'postsReadAt', 'readPostIds', 'clearedAt'])
           && data.preferences is map
           && data.preferences.keys().hasAll(['newPosts', 'ticketReplies', 'postComments'])
-          && data.preferences.keys().hasOnly(['newPosts', 'ticketReplies', 'postComments'])
+          && data.preferences.keys().hasOnly(['newPosts', 'ticketReplies', 'postComments', 'mentions'])
           && data.preferences.newPosts is bool
           && data.preferences.ticketReplies is bool
           && data.preferences.postComments is bool
+          && (!('mentions' in data.preferences) || data.preferences.mentions is bool)
           && data.postsReadAt is timestamp
           && data.postsReadAt <= request.time
           && data.readPostIds is list && data.readPostIds.size() <= 50
@@ -398,8 +556,11 @@ service cloud.firestore {
     // Collection: notifications (Réponses à mes tickets et commentaires de mes posts)
     // -------------------------------------------------------------------------
     match /notifications/{notificationId} {
-      // Read: only the recipient (queries filter on recipientId)
-      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+      // Read: the recipient (queries filter on recipientId), or the author of the action,
+      // who looks up their own notifications to remove them when deleting the content
+      allow read: if isAuthenticated()
+                  && (resource.data.recipientId == request.auth.uid
+                      || resource.data.actorId == request.auth.uid);
 
       // Create: written by the message author in the same batch as the message itself
       allow create: if isAuthenticated() && isValidNewNotification(request.resource.data);
@@ -410,7 +571,27 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
                     && request.resource.data.read == true;
 
-      allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+      // Delete: the recipient (clear, orphan notification) or the author of the deleted content
+      allow delete: if isAuthenticated()
+                    && (resource.data.recipientId == request.auth.uid
+                        || resource.data.actorId == request.auth.uid);
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: emailIndex (Annuaire e-mail → uid, utilisé pour les mentions dans les canaux privés)
+    // -------------------------------------------------------------------------
+    match /emailIndex/{email} {
+      // Get only: an entry can be read when the exact e-mail is already known; listing is forbidden
+      allow get: if isAuthenticated();
+      allow list: if false;
+
+      // Each student registers their own lower-cased sign-in e-mail
+      allow create, update: if isAuthenticated()
+                            && request.auth.token.email != null
+                            && email == request.auth.token.email.lower()
+                            && request.resource.data.keys().hasOnly(['uid'])
+                            && request.resource.data.uid == request.auth.uid;
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 // =====================================================================
 
 // Catégories de notifications, chacune activable dans les paramètres
-export type NotificationCategory = "newPosts" | "ticketReplies" | "postComments";
+export type NotificationCategory = "newPosts" | "ticketReplies" | "postComments" | "mentions";
 
 // Préférences de notification d'un utilisateur
 export type NotificationPreferences = Record<NotificationCategory, boolean>;
@@ -13,6 +13,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   newPosts: true,
   ticketReplies: true,
   postComments: true,
+  mentions: true,
 };
 
 // Document notificationSettings/{uid} : préférences et état de lecture des nouveaux posts
@@ -30,7 +31,7 @@ export interface NotificationSettings {
 export const MAX_READ_POST_IDS = 50;
 
 // Type d'une notification écrite par l'auteur d'un message (document notifications/{id})
-export type ThreadNotificationType = "ticket_reply" | "post_comment";
+export type ThreadNotificationType = "ticket_reply" | "post_comment" | "post_mention" | "ticket_mention";
 
 // Élément affiché dans le centre de notifications
 export interface NotificationItem {
@@ -49,6 +50,8 @@ export interface NotificationItem {
   // Post ou ticket à mettre en avant à l'ouverture du canal
   targetId: string;
   targetTab: "posts" | "tickets";
+  // Ouverture du fil de réponses ou de commentaires de la carte ciblée
+  openThread: boolean;
   createdAt: string;
   isRead: boolean;
 }
@@ -59,4 +62,6 @@ export interface NotificationFocus {
   tab: "posts" | "tickets";
   // Ouverture du fil de réponses ou de commentaires de la carte ciblée
   openThread: boolean;
+  // Notification Firestore à l'origine de la navigation, supprimée si sa cible n'existe plus
+  notificationId?: string;
 }

@@ -7,6 +7,9 @@
 import {
   collection,
   doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
   writeBatch,
   increment,
   onSnapshot,
@@ -17,7 +20,10 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { ThreadKind, ThreadMessage } from "../types/thread";
+import type { MentionTarget } from "../types/mention";
+import { cleanupAfterDeletion } from "./cleanupService";
 import {
+  addMentionNotifications,
   buildThreadNotificationData,
   newNotificationRef,
   type NotificationParent,
@@ -39,7 +45,9 @@ export const addThreadMessage = async (
   kind: ThreadKind,
   parent: NotificationParent & { id: string },
   content: string,
-  user: { uid: string; displayName?: string | null; email?: string | null }
+  user: { uid: string; displayName?: string | null; email?: string | null },
+  // Étudiants mentionnés dans le message (l'auteur du parent, déjà notifié, en est exclu)
+  mentions: MentionTarget[] = []
 ): Promise<void> => {
   const { subcollection, counterField, notificationType } = THREAD_CONFIG[kind];
   const authorName = user.displayName || user.email || "Étudiant";
@@ -61,20 +69,47 @@ export const addThreadMessage = async (
       })
     );
   }
+  addMentionNotifications(
+    batch,
+    kind,
+    parent.id,
+    messageRef.id,
+    parent,
+    { uid: user.uid, name: authorName },
+    mentions.filter((mention) => mention.uid !== parent.authorId)
+  );
   await batch.commit();
 };
 
-// Suppression d'un message par son auteur et décrémentation atomique du compteur du parent
+// Suppression d'un message par son auteur et décrémentation atomique du compteur du parent,
+// puis nettoyage de ses images et des notifications qu'il avait générées (réponse, mentions)
 export const deleteThreadMessage = async (
   kind: ThreadKind,
   parentId: string,
-  messageId: string
+  message: Pick<ThreadMessage, "id" | "authorId" | "content">
 ): Promise<void> => {
   const { subcollection, counterField } = THREAD_CONFIG[kind];
   const batch = writeBatch(db);
-  batch.delete(doc(db, kind, parentId, subcollection, messageId));
+  batch.delete(doc(db, kind, parentId, subcollection, message.id));
   batch.update(doc(db, kind, parentId), { [counterField]: increment(-1) });
   await batch.commit();
+  await cleanupAfterDeletion(message.authorId, parentId, [message.content], message.id);
+};
+
+// Bascule du vote positif d'un étudiant sur une réponse à un ticket ou un commentaire de post
+// (les champs absents des anciens messages sont créés par increment et arrayUnion)
+export const toggleThreadMessageUpvote = async (
+  kind: ThreadKind,
+  parentId: string,
+  messageId: string,
+  userId: string,
+  isCurrentlyUpvoted: boolean
+): Promise<void> => {
+  const { subcollection } = THREAD_CONFIG[kind];
+  await updateDoc(doc(db, kind, parentId, subcollection, messageId), {
+    upvotedBy: isCurrentlyUpvoted ? arrayRemove(userId) : arrayUnion(userId),
+    upvotesCount: increment(isCurrentlyUpvoted ? -1 : 1),
+  });
 };
 
 // Écoute en temps réel des messages d'un fil, du plus ancien au plus récent
@@ -105,6 +140,8 @@ export const subscribeToThreadMessages = (
           createdAt: data.createdAt?.toDate
             ? data.createdAt.toDate().toISOString()
             : new Date().toISOString(),
+          upvotesCount: data.upvotesCount || 0,
+          upvotedBy: Array.isArray(data.upvotedBy) ? data.upvotedBy : [],
         };
       });
       onMessagesUpdate(messages);
