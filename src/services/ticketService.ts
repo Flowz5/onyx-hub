@@ -39,6 +39,7 @@ export const createTicketInFirestore = async (
     authorName: user.displayName || user.email || "Étudiant",
     createdAt: serverTimestamp(),
     repliesCount: 0,
+    solutionReplyId: null,
   };
 
   // Génération préalable de la référence afin de l'inclure dans le lot d'écriture
@@ -74,6 +75,18 @@ export const updateTicketInFirestore = async (
     description: formData.description,
     priority: formData.priority,
     tags: formData.tags,
+  });
+};
+
+// Marquage (ou retrait) d'une réponse comme solution par l'auteur du ticket.
+// Le marquage d'une solution fait passer le ticket au statut « Résolu ».
+export const setTicketSolution = async (
+  ticketId: string,
+  replyId: string | null
+): Promise<void> => {
+  await updateDoc(doc(db, TICKETS_COLLECTION, ticketId), {
+    solutionReplyId: replyId,
+    ...(replyId ? { status: "resolved" } : {}),
   });
 };
 
@@ -125,6 +138,7 @@ export const subscribeToChannelTickets = (
             ? data.createdAt.toDate().toISOString()
             : new Date().toISOString(),
           repliesCount: data.repliesCount || 0,
+          solutionReplyId: data.solutionReplyId ?? null,
         };
       });
       onTicketsUpdate(tickets);
@@ -152,6 +166,7 @@ export const subscribeToChannelTickets = (
                 ? data.createdAt.toDate().toISOString()
                 : new Date().toISOString(),
               repliesCount: data.repliesCount || 0,
+          solutionReplyId: data.solutionReplyId ?? null,
             };
           });
           // Tri côté client
