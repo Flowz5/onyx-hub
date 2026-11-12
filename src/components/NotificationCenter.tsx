@@ -135,6 +135,7 @@ export const NotificationCenter: React.FC = () => {
       targetId: item.targetId,
       tab: item.targetTab,
       openThread: item.openThread,
+      notificationId: item.source === "thread" ? item.sourceId : undefined,
     };
     setIsOpen(false);
     navigate(`/channels/${item.channelId}`, { state: { notificationFocus } });

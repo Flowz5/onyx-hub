@@ -19,6 +19,7 @@ import {
 import { db } from "./firebase";
 import { addProfileCounterStep } from "./profileService";
 import { addMentionNotifications } from "./notificationService";
+import { cleanupAfterDeletion, deleteParentWithThread, deleteRemovedImages } from "./cleanupService";
 import type { MentionTarget } from "../types/mention";
 import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
 
@@ -83,10 +84,12 @@ export const updateTicketStatusInFirestore = async (
   });
 };
 
-// Modification d'un ticket par son auteur (sujet, description, priorité et tags)
+// Modification d'un ticket par son auteur (sujet, description, priorité et tags).
+// Les images retirées de la description sont ensuite supprimées.
 export const updateTicketInFirestore = async (
   ticketId: string,
-  formData: NewTicketFormData
+  formData: NewTicketFormData,
+  previousDescription: string
 ): Promise<void> => {
   await updateDoc(doc(db, TICKETS_COLLECTION, ticketId), {
     title: formData.title,
@@ -94,6 +97,9 @@ export const updateTicketInFirestore = async (
     priority: formData.priority,
     tags: formData.tags,
   });
+  await deleteRemovedImages(previousDescription, formData.description).catch((error) =>
+    console.warn("Nettoyage des images retirées du ticket :", error)
+  );
 };
 
 // Marquage (ou retrait) d'une réponse comme solution par l'auteur du ticket.
@@ -134,19 +140,21 @@ export const setTicketSolution = async (
   await batch.commit();
 };
 
-// Suppression d'un ticket par son auteur et décrémentation atomique des compteurs du canal et du profil
-export const deleteTicketFromFirestore = async (
-  ticketId: string,
-  channelId: string,
-  authorId: string
-): Promise<void> => {
-  const batch = writeBatch(db);
-  batch.delete(doc(db, TICKETS_COLLECTION, ticketId));
-  batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
-    ticketsCount: increment(-1),
+// Suppression d'un ticket par son auteur avec ses réponses,
+// décrémentation des compteurs du canal et du profil, puis nettoyage
+// de ses images (et de celles de ses propres réponses) et des notifications qu'il a générées
+export const deleteTicketFromFirestore = async (ticket: Ticket, authorId: string): Promise<void> => {
+  const deletedReplies = await deleteParentWithThread("tickets", "replies", ticket.id, async (batch) => {
+    batch.update(doc(db, CHANNELS_COLLECTION, ticket.channelId), {
+      ticketsCount: increment(-1),
+    });
+    await addProfileCounterStep(batch, authorId, "ticketsCount", -1);
   });
-  await addProfileCounterStep(batch, authorId, "ticketsCount", -1);
-  await batch.commit();
+
+  const ownContents = deletedReplies
+    .filter((reply) => reply.authorId === authorId)
+    .map((reply) => reply.content);
+  await cleanupAfterDeletion(authorId, ticket.id, [ticket.description, ...ownContents]);
 };
 
 // Écoute en temps réel des tickets d'un canal

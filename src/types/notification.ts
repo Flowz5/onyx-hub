@@ -62,4 +62,6 @@ export interface NotificationFocus {
   tab: "posts" | "tickets";
   // Ouverture du fil de réponses ou de commentaires de la carte ciblée
   openThread: boolean;
+  // Notification Firestore à l'origine de la navigation, supprimée si sa cible n'existe plus
+  notificationId?: string;
 }

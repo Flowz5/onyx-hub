@@ -12,6 +12,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  deleteDoc,
   setDoc,
   updateDoc,
   writeBatch,
@@ -185,6 +186,11 @@ export const subscribeToThreadNotifications = (
     mainUnsubscribe();
     if (fallbackUnsubscribe) fallbackUnsubscribe();
   };
+};
+
+// Suppression d'une notification reçue (ex : contenu ciblé supprimé entre-temps)
+export const deleteReceivedNotification = async (notificationId: string): Promise<void> => {
+  await deleteDoc(doc(db, NOTIFICATIONS_COLLECTION, notificationId));
 };
 
 // Marquage d'une ou plusieurs notifications de fil comme lues

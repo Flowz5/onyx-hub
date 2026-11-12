@@ -28,11 +28,12 @@ import {
 } from "../services/ticketService";
 import "./ChannelDetailPage.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { ArrowLeft, Lock, MessagesSquare, Plus, Ticket as TicketIcon, Users } from "lucide-react";
+import { ArrowLeft, Lock, MessagesSquare, Plus, Ticket as TicketIcon, Users, CircleAlert } from "lucide-react";
 import { ChannelMembersModal } from "../components/ChannelMembersModal";
 import { AppTopbar } from "../components/AppTopbar";
 import { MentionProvider, useChannelMentionCandidates } from "../context/MentionContext";
 import { resolveMentionTargets } from "../types/mention";
+import { deleteReceivedNotification } from "../services/notificationService";
 
 // Page principale dédiée à la consultation intérieure d'un canal (Posts & Tickets)
 export const ChannelDetailPage: React.FC = () => {
@@ -55,6 +56,12 @@ export const ChannelDetailPage: React.FC = () => {
   // Données des flux en temps réel
   const [posts, setPosts] = useState<Post[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  // Canal dont les flux ont été reçus : distingue un flux vide d'un flux en cours de chargement,
+  // y compris lors du passage d'un canal à un autre (la page n'est alors pas recréée)
+  const [postsLoadedFor, setPostsLoadedFor] = useState<string | null>(null);
+  const [ticketsLoadedFor, setTicketsLoadedFor] = useState<string | null>(null);
+  const arePostsLoaded = postsLoadedFor !== null && postsLoadedFor === channelId;
+  const areTicketsLoaded = ticketsLoadedFor !== null && ticketsLoadedFor === channelId;
 
   // Recherche et filtres du flux
   const [searchQuery, setSearchQuery] = useState("");
@@ -113,6 +120,23 @@ export const ChannelDetailPage: React.FC = () => {
     // L'état de navigation est un nouvel objet à chaque navigation, même vers la même cible
   }, [notificationFocus]);
 
+  // Cible de la notification introuvable une fois le flux chargé : contenu supprimé entre-temps
+  const isFocusTargetMissing = Boolean(
+    notificationFocus &&
+      (notificationFocus.tab === "posts"
+        ? arePostsLoaded && !posts.some((post) => post.id === notificationFocus.targetId)
+        : areTicketsLoaded && !tickets.some((ticket) => ticket.id === notificationFocus.targetId))
+  );
+
+  // La notification devenue orpheline est retirée de la liste de l'utilisateur
+  const orphanNotificationId = isFocusTargetMissing ? notificationFocus?.notificationId : undefined;
+  useEffect(() => {
+    if (!orphanNotificationId) return;
+    deleteReceivedNotification(orphanNotificationId).catch((error) =>
+      console.warn("Suppression de la notification orpheline :", error)
+    );
+  }, [orphanNotificationId]);
+
   // Mise en avant d'une carte du flux lorsqu'elle est la cible de la notification
   const getCardFocus = (id: string): "card" | "thread" | null => {
     if (!notificationFocus || notificationFocus.targetId !== id) return null;
@@ -124,7 +148,10 @@ export const ChannelDetailPage: React.FC = () => {
     if (!channelId || !hasChannelAccess) return;
     const unsubscribe = subscribeToChannelPosts(
       channelId,
-      (loadedPosts) => setPosts(loadedPosts),
+      (loadedPosts) => {
+        setPosts(loadedPosts);
+        setPostsLoadedFor(channelId);
+      },
       (err) => console.error("Erreur écoute des posts :", err)
     );
     return () => unsubscribe();
@@ -135,7 +162,10 @@ export const ChannelDetailPage: React.FC = () => {
     if (!channelId || !hasChannelAccess) return;
     const unsubscribe = subscribeToChannelTickets(
       channelId,
-      (loadedTickets) => setTickets(loadedTickets),
+      (loadedTickets) => {
+        setTickets(loadedTickets);
+        setTicketsLoadedFor(channelId);
+      },
       (err) => console.error("Erreur écoute des tickets :", err)
     );
     return () => unsubscribe();
@@ -245,7 +275,7 @@ export const ChannelDetailPage: React.FC = () => {
     }
     try {
       if (editingPost) {
-        await updatePostInFirestore(editingPost.id, data);
+        await updatePostInFirestore(editingPost.id, data, editingPost.content);
       } else {
         await createPostInFirestore(
           channelId,
@@ -269,7 +299,7 @@ export const ChannelDetailPage: React.FC = () => {
     }
     try {
       if (editingTicket) {
-        await updateTicketInFirestore(editingTicket.id, data);
+        await updateTicketInFirestore(editingTicket.id, data, editingTicket.description);
       } else {
         await createTicketInFirestore(
           channelId,
@@ -297,9 +327,10 @@ export const ChannelDetailPage: React.FC = () => {
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (!channelId || !user) return;
+    const post = posts.find((item) => item.id === postId);
+    if (!post || !user) return;
     try {
-      await deletePostFromFirestore(postId, channelId, user.uid);
+      await deletePostFromFirestore(post, user.uid);
     } catch (err) {
       console.error("Erreur de suppression du post :", err);
       alert("Impossible de supprimer ce post.");
@@ -317,9 +348,10 @@ export const ChannelDetailPage: React.FC = () => {
   };
 
   const handleDeleteTicket = async (ticketId: string) => {
-    if (!channelId || !user) return;
+    const ticket = tickets.find((item) => item.id === ticketId);
+    if (!ticket || !user) return;
     try {
-      await deleteTicketFromFirestore(ticketId, channelId, user.uid);
+      await deleteTicketFromFirestore(ticket, user.uid);
     } catch (err) {
       console.error("Erreur de suppression du ticket :", err);
       alert("Impossible de supprimer ce ticket.");
@@ -454,6 +486,17 @@ export const ChannelDetailPage: React.FC = () => {
               }
             }}
           />
+
+          {/* Contenu ciblé par une notification mais supprimé depuis */}
+          {isFocusTargetMissing && (
+            <div className="missing-target-banner" role="status">
+              <CircleAlert className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" />
+              <span>
+                {notificationFocus?.tab === "tickets" ? "Ce ticket" : "Ce post"} a été supprimé par son
+                auteur. La notification a été retirée.
+              </span>
+            </div>
+          )}
 
           {/* Flux déroulant : Liste des posts */}
           {activeTab === "posts" && (
