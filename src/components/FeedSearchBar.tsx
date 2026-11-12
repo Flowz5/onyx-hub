@@ -1,11 +1,16 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import type { ChannelActiveTab } from "./ChannelTabSelector";
 import type { TicketStatus } from "../types/ticket";
 import "./FeedSearchBar.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { CircleCheck, CircleDot, Clock3, Flame, Hourglass, Plus, X } from "lucide-react";
+import { CircleCheck, CircleDot, Clock3, Flame, Hourglass, Plus, Search, Tag, X } from "lucide-react";
 
 export type PostSortOption = "latest" | "popular";
+
+// Nombre de tags principaux affichés par défaut, hors recherche
+const MAX_VISIBLE_TAGS = 6;
+// Nombre maximal de résultats affichés lors d'une recherche de tags
+const MAX_SEARCH_RESULTS = 12;
 
 interface FeedSearchBarProps {
   searchQuery: string;
@@ -17,6 +22,7 @@ interface FeedSearchBarProps {
   onTicketStatusFilterChange: (status: "all" | TicketStatus) => void;
   selectedTag: string;
   onTagSelect: (tag: string) => void;
+  // Tags disponibles, triés du plus important au moins important
   availableTags: string[];
   onOpenCreateModal: () => void;
 }
@@ -35,6 +41,32 @@ export const FeedSearchBar: React.FC<FeedSearchBarProps> = ({
   availableTags,
   onOpenCreateModal,
 }) => {
+  // Requête locale de recherche parmi les tags
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
+
+  // Sélection des tags à afficher : les principaux par défaut, les correspondances en recherche
+  const { visibleTags, hiddenCount } = useMemo(() => {
+    const query = tagSearchQuery.toLowerCase().trim();
+
+    if (query) {
+      const matched = availableTags.filter((tag) => tag.toLowerCase().includes(query));
+      return {
+        visibleTags: matched.slice(0, MAX_SEARCH_RESULTS),
+        hiddenCount: Math.max(matched.length - MAX_SEARCH_RESULTS, 0),
+      };
+    }
+
+    const mainTags = availableTags.slice(0, MAX_VISIBLE_TAGS);
+    // Le tag actif reste toujours visible, même s'il ne fait pas partie des principaux
+    if (selectedTag !== "Tous" && !mainTags.includes(selectedTag)) {
+      mainTags.push(selectedTag);
+    }
+    return {
+      visibleTags: mainTags,
+      hiddenCount: Math.max(availableTags.length - mainTags.length, 0),
+    };
+  }, [availableTags, tagSearchQuery, selectedTag]);
+
   return (
     <div className="feed-search-bar-component">
       {/* Ligne principale : Recherche textuelle et Bouton d'action de création */}
@@ -141,8 +173,11 @@ export const FeedSearchBar: React.FC<FeedSearchBarProps> = ({
           </div>
         )}
 
-        {/* Filtrage rapide par tags si disponibles */}
-        {availableTags.length > 0 && (
+      </div>
+
+      {/* Ligne de filtrage par tags : tags principaux à gauche, recherche à droite */}
+      {availableTags.length > 0 && (
+        <div className="tags-filter-row">
           <div className="feed-tag-filter-chips">
             <button
               type="button"
@@ -151,7 +186,7 @@ export const FeedSearchBar: React.FC<FeedSearchBarProps> = ({
             >
               Tous les tags
             </button>
-            {availableTags.map((tag) => (
+            {visibleTags.map((tag) => (
               <button
                 key={tag}
                 type="button"
@@ -161,9 +196,43 @@ export const FeedSearchBar: React.FC<FeedSearchBarProps> = ({
                 #{tag}
               </button>
             ))}
+
+            {/* Indication du nombre de tags masqués, accessibles via la recherche */}
+            {hiddenCount > 0 && (
+              <span className="hidden-tags-hint">+{hiddenCount} autres</span>
+            )}
+
+            {tagSearchQuery && visibleTags.length === 0 && (
+              <span className="hidden-tags-hint">Aucun tag pour "{tagSearchQuery}"</span>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* Champ de recherche dédié aux tags */}
+          <div className="tag-search-wrapper">
+            <Tag className="onyx-icon tag-search-icon" size={14} strokeWidth={2} aria-hidden="true" />
+            <input
+              type="text"
+              className="tag-search-input"
+              placeholder="Rechercher un tag..."
+              value={tagSearchQuery}
+              onChange={(e) => setTagSearchQuery(e.target.value)}
+              aria-label="Rechercher parmi les tags du canal"
+            />
+            {tagSearchQuery ? (
+              <button
+                type="button"
+                className="clear-tag-search-btn"
+                onClick={() => setTagSearchQuery("")}
+                title="Effacer la recherche de tags"
+              >
+                <X className="onyx-icon" size={12} strokeWidth={2} aria-hidden="true" />
+              </button>
+            ) : (
+              <Search className="onyx-icon tag-search-trailing" size={13} strokeWidth={2} aria-hidden="true" />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

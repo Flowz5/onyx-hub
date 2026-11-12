@@ -159,10 +159,26 @@
         }
       }
     }
+  }
+
+  // Ligne de filtrage par tags : chips principales et recherche alignée à droite
+  .tags-filter-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.85rem;
+
+    @media (max-width: 768px) {
+      flex-direction: column-reverse;
+      align-items: stretch;
+    }
 
     // Chips de filtrage par tag
     .feed-tag-filter-chips {
       display: flex;
+      flex: 1;
+      min-width: 0;
       align-items: center;
       gap: 0.4rem;
       flex-wrap: wrap;
@@ -189,6 +205,76 @@
           border-color: $color-orange;
           color: $color-orange;
           font-weight: 700;
+        }
+      }
+    }
+
+    // Indication des tags masqués ou absence de résultat
+    .hidden-tags-hint {
+      font-size: 0.74rem;
+      color: rgba(255, 255, 255, 0.4);
+      font-style: italic;
+      padding: 4px 2px;
+    }
+
+    // Mini champ de recherche des tags
+    .tag-search-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+      width: 220px;
+      height: 32px;
+      padding: 0 0.85rem;
+      background: rgba(10, 17, 32, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      transition: all 0.2s ease;
+
+      @media (max-width: 768px) {
+        width: 100%;
+      }
+
+      &:focus-within {
+        border-color: rgba(252, 163, 17, 0.5);
+        box-shadow: 0 0 0 2px rgba(252, 163, 17, 0.12);
+      }
+
+      .tag-search-icon {
+        color: $color-orange;
+        opacity: 0.85;
+      }
+
+      .tag-search-trailing {
+        color: rgba(255, 255, 255, 0.35);
+      }
+
+      .tag-search-input {
+        flex: 1;
+        min-width: 0;
+        background: transparent;
+        border: none;
+        outline: none;
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        color: $color-white;
+
+        &::placeholder {
+          color: rgba(255, 255, 255, 0.35);
+        }
+      }
+
+      .clear-tag-search-btn {
+        display: flex;
+        align-items: center;
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+        padding: 0;
+
+        &:hover {
+          color: $color-white;
         }
       }
     }

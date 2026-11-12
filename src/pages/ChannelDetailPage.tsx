@@ -108,15 +108,20 @@ export const ChannelDetailPage: React.FC = () => {
     return () => unsubscribe();
   }, [channelId, hasChannelAccess]);
 
-  // Agrégation dynamique des tags disponibles dans le flux
+  // Agrégation des tags du flux, triés par importance :
+  // les tags du canal en premier, puis les autres par nombre d'utilisations décroissant
   const availableTags = useMemo(() => {
-    const set = new Set<string>();
-    if (channel?.tags) {
-      channel.tags.forEach((t) => set.add(t));
-    }
-    posts.forEach((p) => p.tags.forEach((t) => set.add(t)));
-    tickets.forEach((tk) => tk.tags.forEach((t) => set.add(t)));
-    return Array.from(set);
+    const usage = new Map<string, number>();
+    const countTag = (tag: string) => usage.set(tag, (usage.get(tag) || 0) + 1);
+    posts.forEach((p) => p.tags.forEach(countTag));
+    tickets.forEach((tk) => tk.tags.forEach(countTag));
+
+    const channelTags = channel?.tags || [];
+    const otherTags = Array.from(usage.keys())
+      .filter((tag) => !channelTags.includes(tag))
+      .sort((a, b) => (usage.get(b) || 0) - (usage.get(a) || 0) || a.localeCompare(b, "fr"));
+
+    return [...channelTags, ...otherTags];
   }, [channel, posts, tickets]);
 
   // Filtrage et tri des posts
