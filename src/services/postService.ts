@@ -20,6 +20,8 @@ import {
 import { db } from "./firebase";
 import type { Post, NewPostFormData } from "../types/post";
 import { addProfileCounterStep } from "./profileService";
+import { addMentionNotifications } from "./notificationService";
+import type { MentionTarget } from "../types/mention";
 
 const POSTS_COLLECTION = "posts";
 const CHANNELS_COLLECTION = "channels";
@@ -29,7 +31,9 @@ const CHANNELS_COLLECTION = "channels";
 export const createPostInFirestore = async (
   channelId: string,
   formData: NewPostFormData,
-  user: { uid: string; displayName?: string | null; email?: string | null }
+  user: { uid: string; displayName?: string | null; email?: string | null },
+  // Étudiants mentionnés dans le contenu, notifiés dans le même lot
+  mentions: MentionTarget[] = []
 ): Promise<string> => {
   const postData = {
     channelId,
@@ -52,6 +56,15 @@ export const createPostInFirestore = async (
     postsCount: increment(1),
   });
   await addProfileCounterStep(batch, user.uid, "postsCount", 1);
+  addMentionNotifications(
+    batch,
+    "posts",
+    postDocRef.id,
+    null,
+    { title: formData.title, channelId },
+    { uid: user.uid, name: postData.authorName },
+    mentions
+  );
   await batch.commit();
 
   return postDocRef.id;

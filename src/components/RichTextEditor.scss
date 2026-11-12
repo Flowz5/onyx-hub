@@ -152,6 +152,32 @@
     }
   }
 
+  // Suggestions de mention, affichées sous la zone de saisie
+  // (dans le flux : le conteneur de l'éditeur masque tout débordement)
+  .mention-suggestions {
+    list-style: none;
+    margin: 0;
+    padding: 0.35rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(20, 33, 61, 0.95);
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+
+      &.active {
+        background: rgba(252, 163, 17, 0.14);
+        color: $color-white;
+      }
+    }
+  }
+
   // Aperçu du rendu
   .editor-preview {
     padding: 0.75rem 1rem;

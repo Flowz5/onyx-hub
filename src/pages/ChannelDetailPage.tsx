@@ -31,6 +31,8 @@ import "./ChannelDetailPage.scss";
 import { ArrowLeft, Lock, MessagesSquare, Plus, Ticket as TicketIcon, Users } from "lucide-react";
 import { ChannelMembersModal } from "../components/ChannelMembersModal";
 import { AppTopbar } from "../components/AppTopbar";
+import { MentionProvider, useChannelMentionCandidates } from "../context/MentionContext";
+import { resolveMentionTargets } from "../types/mention";
 
 // Page principale dédiée à la consultation intérieure d'un canal (Posts & Tickets)
 export const ChannelDetailPage: React.FC = () => {
@@ -69,6 +71,9 @@ export const ChannelDetailPage: React.FC = () => {
 
   // Modale de gestion des membres (canal privé, créateur uniquement)
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+
+  // Membres mentionnables avec « @ » dans les éditeurs du canal
+  const mentionCandidates = useChannelMentionCandidates(channel);
 
   // Le canal est accessible une fois chargé ; sinon il est inexistant ou réservé à ses membres
   const hasChannelAccess = Boolean(channel);
@@ -242,7 +247,12 @@ export const ChannelDetailPage: React.FC = () => {
       if (editingPost) {
         await updatePostInFirestore(editingPost.id, data);
       } else {
-        await createPostInFirestore(channelId, data, user);
+        await createPostInFirestore(
+          channelId,
+          data,
+          user,
+          resolveMentionTargets(data.content, mentionCandidates, [user.uid])
+        );
         setActiveTab("posts");
       }
       closePostModal();
@@ -261,7 +271,12 @@ export const ChannelDetailPage: React.FC = () => {
       if (editingTicket) {
         await updateTicketInFirestore(editingTicket.id, data);
       } else {
-        await createTicketInFirestore(channelId, data, user);
+        await createTicketInFirestore(
+          channelId,
+          data,
+          user,
+          resolveMentionTargets(data.description, mentionCandidates, [user.uid])
+        );
         setActiveTab("tickets");
       }
       closeTicketModal();
@@ -321,229 +336,232 @@ export const ChannelDetailPage: React.FC = () => {
   const channelDisplayName = channel?.name || channelId || "Canal";
 
   return (
-    <div className="channel-detail-page-container">
-      {/* Barre de navigation supérieure commune */}
-      <AppTopbar />
+    // Candidats aux mentions partagés avec les éditeurs (posts, tickets, réponses, commentaires)
+    <MentionProvider candidates={mentionCandidates}>
+      <div className="channel-detail-page-container">
+        {/* Barre de navigation supérieure commune */}
+        <AppTopbar />
 
-      {/* Barre d'en-tête secondaire avec bouton retour */}
-      <nav className="channel-sub-nav">
-        <button
-          type="button"
-          className="back-to-channels-btn"
-          onClick={() => navigate("/channels")}
-        >
-          <span className="back-arrow"><ArrowLeft className="onyx-icon" size={16} strokeWidth={2} aria-hidden="true" /></span>
-          <span>Retour aux canaux</span>
-        </button>
-        <div className="current-channel-crumb">
-          <span>Canal :</span>
-          <strong>#{channelDisplayName}</strong>
-          {channel && (
-            <span className={`crumb-pill ${channel.visibility}`}>
-              {channel.visibility === "private" ? "Privé" : "Public"}
-            </span>
-          )}
-        </div>
-      </nav>
-
-      {/* Canal introuvable ou privé sans invitation */}
-      {!isChannelLoading && !channel ? (
-        <main className="channel-detail-main">
-          {/* Réutilisation du style de carte vide du flux */}
-          <div className="feed-scrollable-container">
-          <section className="empty-feed-card">
-            <span className="empty-icon">
-              <Lock className="onyx-icon" size={36} strokeWidth={2} aria-hidden="true" />
-            </span>
-            <h4>Canal inaccessible</h4>
-            <p>
-              Ce canal n'existe pas ou il est privé. Demandez à son créateur de vous inviter
-              avec l'adresse e-mail de votre compte.
-            </p>
-            <button type="button" className="empty-cta-btn" onClick={() => navigate("/channels")}>
-              Retour aux canaux
-            </button>
-          </section>
-          </div>
-        </main>
-      ) : (
-      <main className="channel-detail-main">
-        {/* En-tête informatif du canal */}
-        <section className="channel-info-card">
-          <div className="info-top-row">
-            <h2>#{channelDisplayName}</h2>
-            {channel?.tags && (
-              <div className="info-tags-list">
-                {channel.tags.map((tag) => (
-                  <span key={tag} className="channel-header-tag">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
+        {/* Barre d'en-tête secondaire avec bouton retour */}
+        <nav className="channel-sub-nav">
+          <button
+            type="button"
+            className="back-to-channels-btn"
+            onClick={() => navigate("/channels")}
+          >
+            <span className="back-arrow"><ArrowLeft className="onyx-icon" size={16} strokeWidth={2} aria-hidden="true" /></span>
+            <span>Retour aux canaux</span>
+          </button>
+          <div className="current-channel-crumb">
+            <span>Canal :</span>
+            <strong>#{channelDisplayName}</strong>
+            {channel && (
+              <span className={`crumb-pill ${channel.visibility}`}>
+                {channel.visibility === "private" ? "Privé" : "Public"}
+              </span>
             )}
           </div>
-          <p className="channel-desc-text">
-            {isChannelLoading
-              ? "Chargement des détails du canal..."
-              : channel?.description || "Espace d'échange et d'entraide entre étudiants."}
-          </p>
+        </nav>
 
-          {/* Informations d'accès d'un canal privé et gestion des membres par le créateur */}
-          {channel?.visibility === "private" && (
-            <div className="private-access-row">
-              <span className="members-summary">
-                <Users className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
-                {channel.memberEmails.length} membre{channel.memberEmails.length > 1 ? "s" : ""} invité
-                {channel.memberEmails.length > 1 ? "s" : ""}
+        {/* Canal introuvable ou privé sans invitation */}
+        {!isChannelLoading && !channel ? (
+          <main className="channel-detail-main">
+            {/* Réutilisation du style de carte vide du flux */}
+            <div className="feed-scrollable-container">
+            <section className="empty-feed-card">
+              <span className="empty-icon">
+                <Lock className="onyx-icon" size={36} strokeWidth={2} aria-hidden="true" />
               </span>
-              {isChannelOwner && (
-                <button
-                  type="button"
-                  className="manage-members-btn"
-                  onClick={() => setIsMembersModalOpen(true)}
-                >
-                  Gérer les membres
-                </button>
+              <h4>Canal inaccessible</h4>
+              <p>
+                Ce canal n'existe pas ou il est privé. Demandez à son créateur de vous inviter
+                avec l'adresse e-mail de votre compte.
+              </p>
+              <button type="button" className="empty-cta-btn" onClick={() => navigate("/channels")}>
+                Retour aux canaux
+              </button>
+            </section>
+            </div>
+          </main>
+        ) : (
+        <main className="channel-detail-main">
+          {/* En-tête informatif du canal */}
+          <section className="channel-info-card">
+            <div className="info-top-row">
+              <h2>#{channelDisplayName}</h2>
+              {channel?.tags && (
+                <div className="info-tags-list">
+                  {channel.tags.map((tag) => (
+                    <span key={tag} className="channel-header-tag">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p className="channel-desc-text">
+              {isChannelLoading
+                ? "Chargement des détails du canal..."
+                : channel?.description || "Espace d'échange et d'entraide entre étudiants."}
+            </p>
+
+            {/* Informations d'accès d'un canal privé et gestion des membres par le créateur */}
+            {channel?.visibility === "private" && (
+              <div className="private-access-row">
+                <span className="members-summary">
+                  <Users className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                  {channel.memberEmails.length} membre{channel.memberEmails.length > 1 ? "s" : ""} invité
+                  {channel.memberEmails.length > 1 ? "s" : ""}
+                </span>
+                {isChannelOwner && (
+                  <button
+                    type="button"
+                    className="manage-members-btn"
+                    onClick={() => setIsMembersModalOpen(true)}
+                  >
+                    Gérer les membres
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* Sélecteur d'onglets (Posts vs Tickets) */}
+          <ChannelTabSelector
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            postsCount={posts.length}
+            ticketsCount={tickets.length}
+          />
+
+          {/* Barre de recherche et filtres de flux */}
+          <FeedSearchBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            activeTab={activeTab}
+            postSort={postSort}
+            onPostSortChange={setPostSort}
+            ticketStatusFilter={ticketStatusFilter}
+            onTicketStatusFilterChange={setTicketStatusFilter}
+            selectedTag={selectedTag}
+            onTagSelect={setSelectedTag}
+            availableTags={availableTags}
+            onOpenCreateModal={() => {
+              if (activeTab === "posts") {
+                setIsCreatePostModalOpen(true);
+              } else {
+                setIsCreateTicketModalOpen(true);
+              }
+            }}
+          />
+
+          {/* Flux déroulant : Liste des posts */}
+          {activeTab === "posts" && (
+            <div className="feed-scrollable-container">
+              {filteredPosts.length === 0 ? (
+                <div className="empty-feed-card">
+                  <span className="empty-icon"><MessagesSquare className="onyx-icon" size={40} strokeWidth={2} aria-hidden="true" /></span>
+                  <h4>Aucun post dans ce canal pour l'instant</h4>
+                  <p>
+                    Soyez le premier à partager une astuce, une ressource ou poser une question !
+                  </p>
+                  <button
+                    type="button"
+                    className="empty-cta-btn"
+                    onClick={() => setIsCreatePostModalOpen(true)}
+                  >
+                    <Plus className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                    Créer le premier post
+                  </button>
+                </div>
+              ) : (
+                <div className="feed-items-list">
+                  {filteredPosts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      currentUserId={user?.uid}
+                      onUpvote={handleUpvotePost}
+                      onDelete={handleDeletePost}
+                      onEdit={handleEditPost}
+                      focus={getCardFocus(post.id)}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           )}
-        </section>
 
-        {/* Sélecteur d'onglets (Posts vs Tickets) */}
-        <ChannelTabSelector
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          postsCount={posts.length}
-          ticketsCount={tickets.length}
-        />
+          {/* Flux déroulant : Liste des tickets d'aide */}
+          {activeTab === "tickets" && (
+            <div className="feed-scrollable-container">
+              {filteredTickets.length === 0 ? (
+                <div className="empty-feed-card">
+                  <span className="empty-icon"><TicketIcon className="onyx-icon" size={40} strokeWidth={2} aria-hidden="true" /></span>
+                  <h4>Aucun ticket d'assistance en attente</h4>
+                  <p>
+                    Un problème sur un TP, un bug de code ou un point de cours bloquant ? Ouvrez un ticket !
+                  </p>
+                  <button
+                    type="button"
+                    className="empty-cta-btn"
+                    onClick={() => setIsCreateTicketModalOpen(true)}
+                  >
+                    <Plus className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                    Ouvrir un ticket d'aide
+                  </button>
+                </div>
+              ) : (
+                <div className="feed-items-list">
+                  {filteredTickets.map((ticket) => (
+                    <TicketCard
+                      key={ticket.id}
+                      ticket={ticket}
+                      currentUserId={user?.uid}
+                      onUpdateStatus={handleUpdateTicketStatus}
+                      onDelete={handleDeleteTicket}
+                      onEdit={handleEditTicket}
+                      focus={getCardFocus(ticket.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Barre de recherche et filtres de flux */}
-        <FeedSearchBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          activeTab={activeTab}
-          postSort={postSort}
-          onPostSortChange={setPostSort}
-          ticketStatusFilter={ticketStatusFilter}
-          onTicketStatusFilterChange={setTicketStatusFilter}
-          selectedTag={selectedTag}
-          onTagSelect={setSelectedTag}
-          availableTags={availableTags}
-          onOpenCreateModal={() => {
-            if (activeTab === "posts") {
-              setIsCreatePostModalOpen(true);
-            } else {
-              setIsCreateTicketModalOpen(true);
-            }
-          }}
-        />
-
-        {/* Flux déroulant : Liste des posts */}
-        {activeTab === "posts" && (
-          <div className="feed-scrollable-container">
-            {filteredPosts.length === 0 ? (
-              <div className="empty-feed-card">
-                <span className="empty-icon"><MessagesSquare className="onyx-icon" size={40} strokeWidth={2} aria-hidden="true" /></span>
-                <h4>Aucun post dans ce canal pour l'instant</h4>
-                <p>
-                  Soyez le premier à partager une astuce, une ressource ou poser une question !
-                </p>
-                <button
-                  type="button"
-                  className="empty-cta-btn"
-                  onClick={() => setIsCreatePostModalOpen(true)}
-                >
-                  <Plus className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
-                  Créer le premier post
-                </button>
-              </div>
-            ) : (
-              <div className="feed-items-list">
-                {filteredPosts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    currentUserId={user?.uid}
-                    onUpvote={handleUpvotePost}
-                    onDelete={handleDeletePost}
-                    onEdit={handleEditPost}
-                    focus={getCardFocus(post.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Flux déroulant : Liste des tickets d'aide */}
-        {activeTab === "tickets" && (
-          <div className="feed-scrollable-container">
-            {filteredTickets.length === 0 ? (
-              <div className="empty-feed-card">
-                <span className="empty-icon"><TicketIcon className="onyx-icon" size={40} strokeWidth={2} aria-hidden="true" /></span>
-                <h4>Aucun ticket d'assistance en attente</h4>
-                <p>
-                  Un problème sur un TP, un bug de code ou un point de cours bloquant ? Ouvrez un ticket !
-                </p>
-                <button
-                  type="button"
-                  className="empty-cta-btn"
-                  onClick={() => setIsCreateTicketModalOpen(true)}
-                >
-                  <Plus className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
-                  Ouvrir un ticket d'aide
-                </button>
-              </div>
-            ) : (
-              <div className="feed-items-list">
-                {filteredTickets.map((ticket) => (
-                  <TicketCard
-                    key={ticket.id}
-                    ticket={ticket}
-                    currentUserId={user?.uid}
-                    onUpdateStatus={handleUpdateTicketStatus}
-                    onDelete={handleDeleteTicket}
-                    onEdit={handleEditTicket}
-                    focus={getCardFocus(ticket.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Modales de création */}
-        <CreatePostModal
-          isOpen={isCreatePostModalOpen}
-          onClose={closePostModal}
-          onSubmit={handlePostModalSubmit}
-          mode={editingPost ? "edit" : "create"}
-          initialData={editingPostData}
-          suggestedTags={channel?.tags}
-        />
-
-        <CreateTicketModal
-          isOpen={isCreateTicketModalOpen}
-          onClose={closeTicketModal}
-          onSubmit={handleTicketModalSubmit}
-          mode={editingTicket ? "edit" : "create"}
-          initialData={editingTicketData}
-          suggestedTags={channel?.tags}
-        />
-
-        {/* Modale de gestion des membres du canal privé */}
-        {isChannelOwner && channel && (
-          <ChannelMembersModal
-            isOpen={isMembersModalOpen}
-            onClose={() => setIsMembersModalOpen(false)}
-            channelName={channel.name}
-            initialEmails={channel.memberEmails}
-            ownerEmail={user?.email}
-            onSave={handleSaveMembers}
+          {/* Modales de création */}
+          <CreatePostModal
+            isOpen={isCreatePostModalOpen}
+            onClose={closePostModal}
+            onSubmit={handlePostModalSubmit}
+            mode={editingPost ? "edit" : "create"}
+            initialData={editingPostData}
+            suggestedTags={channel?.tags}
           />
+
+          <CreateTicketModal
+            isOpen={isCreateTicketModalOpen}
+            onClose={closeTicketModal}
+            onSubmit={handleTicketModalSubmit}
+            mode={editingTicket ? "edit" : "create"}
+            initialData={editingTicketData}
+            suggestedTags={channel?.tags}
+          />
+
+          {/* Modale de gestion des membres du canal privé */}
+          {isChannelOwner && channel && (
+            <ChannelMembersModal
+              isOpen={isMembersModalOpen}
+              onClose={() => setIsMembersModalOpen(false)}
+              channelName={channel.name}
+              initialEmails={channel.memberEmails}
+              ownerEmail={user?.email}
+              onSave={handleSaveMembers}
+            />
+          )}
+        </main>
         )}
-      </main>
-      )}
-    </div>
+      </div>
+    </MentionProvider>
   );
 };
