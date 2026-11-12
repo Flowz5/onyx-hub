@@ -493,6 +493,12 @@
       &:active {
         transform: translateY(0);
       }
+
+      // État pendant l'enregistrement Firestore
+      &:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
     }
   }
 }

@@ -147,6 +147,33 @@
     }
 
     // Bouton de suppression du créateur
+    // Bouton d'édition aux couleurs Onyx, placé à gauche de la corbeille
+    .edit-channel-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(252, 163, 17, 0.1);
+      border: 1px solid rgba(252, 163, 17, 0.3);
+      color: $color-orange;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: $color-orange;
+        border-color: $color-orange;
+        color: $color-black;
+        transform: scale(1.08);
+      }
+    }
+
+    // Rapprochement des deux boutons d'action (édition et suppression)
+    .edit-channel-btn + .delete-channel-btn {
+      margin-left: -0.75rem;
+    }
+
     .delete-channel-btn {
       display: flex;
       align-items: center;
