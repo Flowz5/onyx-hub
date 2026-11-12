@@ -1,0 +1,157 @@
+// =====================================================================
+// FEUILLE DE STYLE DE LA MODALE DE GESTION DES MEMBRES D'UN CANAL PRIVÉ
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+// Voile sombre plein écran avec flou d'arrière-plan
+.channel-members-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+}
+
+// Carte de la modale en glassmorphism
+.channel-members-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 1.75rem;
+  background: linear-gradient(160deg, rgba(20, 33, 61, 0.97) 0%, rgba(14, 22, 38, 0.98) 100%);
+  border: 1px solid rgba(252, 163, 17, 0.25);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+
+    .header-icon-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      background: rgba(252, 163, 17, 0.12);
+      border: 1px solid rgba(252, 163, 17, 0.35);
+      color: $color-orange;
+    }
+
+    .header-title-area {
+      flex: 1;
+
+      h2 {
+        font-family: var(--font-heading);
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: $color-white;
+      }
+
+      p {
+        margin-top: 0.25rem;
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.55);
+
+        strong {
+          color: $color-orange;
+        }
+      }
+    }
+
+    .close-modal-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.16);
+        color: $color-white;
+      }
+    }
+  }
+
+  .modal-error-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 12px;
+    font-size: 0.82rem;
+    color: #FCA5A5;
+
+    .onyx-icon {
+      color: #F87171;
+    }
+  }
+
+  .modal-actions-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+    .cancel-btn,
+    .save-members-btn {
+      padding: 0.65rem 1.4rem;
+      border-radius: 50px;
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .cancel-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.7);
+
+      &:hover:not(:disabled) {
+        border-color: rgba(255, 255, 255, 0.3);
+        color: $color-white;
+      }
+    }
+
+    .save-members-btn {
+      background: linear-gradient(135deg, $color-orange 0%, #E5920C 100%);
+      border: none;
+      color: $color-black;
+      box-shadow: 0 4px 16px rgba(252, 163, 17, 0.3);
+
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, #FDB53D 0%, $color-orange 100%);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+    }
+  }
+}

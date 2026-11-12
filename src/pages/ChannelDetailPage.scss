@@ -238,6 +238,46 @@
       line-height: 1.55;
       color: rgba(255, 255, 255, 0.65);
     }
+  
+    // Ligne d'accès d'un canal privé : nombre de membres et bouton de gestion
+    .private-access-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+      .members-summary {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.6);
+
+        .onyx-icon {
+          color: $color-orange;
+        }
+      }
+
+      .manage-members-btn {
+        padding: 7px 16px;
+        background: rgba(252, 163, 17, 0.12);
+        border: 1px solid rgba(252, 163, 17, 0.45);
+        border-radius: 50px;
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: $color-orange;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(252, 163, 17, 0.22);
+          color: $color-white;
+        }
+      }
+    }
   }
 
   // Conteneur du flux déroulant

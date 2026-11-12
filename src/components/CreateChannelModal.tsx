@@ -4,6 +4,7 @@ import "./CreateChannelModal.scss";
 import type { NewChannelFormData } from "../types/channel";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { Check, CircleAlert, Plus, X } from "lucide-react";
+import { MemberEmailsInput } from "./MemberEmailsInput";
 export type { NewChannelFormData };
 
 // Propriétés attendues par le composant modale
@@ -11,6 +12,8 @@ interface CreateChannelModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: NewChannelFormData) => void;
+  // E-mail du créateur, exclu de la liste des invitations
+  currentUserEmail?: string | null;
 }
 
 // Tags thématiques prédéfinis proposés en suggestion rapide
@@ -28,6 +31,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
+  currentUserEmail,
 }) => {
   // État local des champs du formulaire
   const [name, setName] = useState("");
@@ -35,6 +39,8 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(["Général"]);
   const [customTagInput, setCustomTagInput] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("public");
+  // Membres invités, pris en compte uniquement pour un canal privé
+  const [memberEmails, setMemberEmails] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Réinitialisation des états à chaque réouverture de la modale
@@ -45,6 +51,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
       setSelectedTags(["Général"]);
       setCustomTagInput("");
       setVisibility("public");
+      setMemberEmails([]);
       setErrorMessage(null);
     }
   }, [isOpen]);
@@ -123,6 +130,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
       description: description.trim(),
       tags: selectedTags,
       visibility,
+      memberEmails: visibility === "private" ? memberEmails : [],
     });
   };
 
@@ -335,6 +343,21 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
               </label>
             </div>
           </div>
+
+          {/* Invitation des membres, affichée uniquement pour un canal privé */}
+          {visibility === "private" && (
+            <div className="form-group">
+              <label className="form-label">Membres invités</label>
+              <p className="field-hint members-hint">
+                Ajoutez l'adresse e-mail du compte Onyx Hub de chaque étudiant autorisé.
+              </p>
+              <MemberEmailsInput
+                emails={memberEmails}
+                onChange={setMemberEmails}
+                ownerEmail={currentUserEmail}
+              />
+            </div>
+          )}
 
           {/* Boutons d'action en bas de la modale */}
           <div className="modal-actions-footer">
