@@ -265,3 +265,22 @@
     }
   }
 }
+
+// Bandeau d'information : cible d'une notification supprimée
+.missing-target-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(252, 163, 17, 0.08);
+  border: 1px solid rgba(252, 163, 17, 0.35);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.85);
+
+  .onyx-icon {
+    flex-shrink: 0;
+    color: $color-orange;
+  }
+}

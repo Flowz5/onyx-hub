@@ -21,6 +21,7 @@ import {
 import { db } from "./firebase";
 import type { ThreadKind, ThreadMessage } from "../types/thread";
 import type { MentionTarget } from "../types/mention";
+import { cleanupAfterDeletion } from "./cleanupService";
 import {
   addMentionNotifications,
   buildThreadNotificationData,
@@ -80,17 +81,19 @@ export const addThreadMessage = async (
   await batch.commit();
 };
 
-// Suppression d'un message par son auteur et décrémentation atomique du compteur du parent
+// Suppression d'un message par son auteur et décrémentation atomique du compteur du parent,
+// puis nettoyage de ses images et des notifications qu'il avait générées (réponse, mentions)
 export const deleteThreadMessage = async (
   kind: ThreadKind,
   parentId: string,
-  messageId: string
+  message: Pick<ThreadMessage, "id" | "authorId" | "content">
 ): Promise<void> => {
   const { subcollection, counterField } = THREAD_CONFIG[kind];
   const batch = writeBatch(db);
-  batch.delete(doc(db, kind, parentId, subcollection, messageId));
+  batch.delete(doc(db, kind, parentId, subcollection, message.id));
   batch.update(doc(db, kind, parentId), { [counterField]: increment(-1) });
   await batch.commit();
+  await cleanupAfterDeletion(message.authorId, parentId, [message.content], message.id);
 };
 
 // Bascule du vote positif d'un étudiant sur une réponse à un ticket ou un commentaire de post

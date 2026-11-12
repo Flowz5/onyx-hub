@@ -179,10 +179,10 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
   };
 
   // Suppression d'un message par son auteur, après confirmation
-  const handleDelete = async (messageId: string) => {
+  const handleDelete = async (message: ThreadMessage) => {
     if (!window.confirm(`Voulez-vous supprimer ce ${labels.noun} ?`)) return;
     try {
-      await deleteThreadMessage(kind, parentId, messageId);
+      await deleteThreadMessage(kind, parentId, message);
     } catch (error) {
       console.error("Erreur lors de la suppression du message :", error);
       setErrorMessage(`Impossible de supprimer ce ${labels.noun}.`);
@@ -243,7 +243,7 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
                     <button
                       type="button"
                       className="delete-message-btn"
-                      onClick={() => handleDelete(message.id)}
+                      onClick={() => handleDelete(message)}
                       title={`Supprimer mon ${labels.noun}`}
                       aria-label={`Supprimer mon ${labels.noun}`}
                     >

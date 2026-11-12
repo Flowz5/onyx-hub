@@ -312,10 +312,12 @@ service cloud.firestore {
         allow read: if isAuthenticated() && canAccessPost();
         allow create: if isAuthenticated() && canAccessPost() && isValidNewThreadMessage();
 
-        // Comments are immutable, except for upvotes by other channel members;
-        // only their author may delete them.
+        // Comments are immutable, except for upvotes by other channel members.
+        // Delete: the comment author, or the post author (comments removed along with the post).
         allow update: if isAuthenticated() && canAccessPost() && isValidThreadMessageUpvoteToggle();
-        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+        allow delete: if isAuthenticated()
+                      && (isOwner(resource.data.authorId)
+                          || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
       }
     }
 
@@ -360,10 +362,12 @@ service cloud.firestore {
         allow read: if isAuthenticated() && canAccessTicket();
         allow create: if isAuthenticated() && canAccessTicket() && isValidNewThreadMessage();
 
-        // Replies are immutable, except for upvotes by other channel members;
-        // only their author may delete them.
+        // Replies are immutable, except for upvotes by other channel members.
+        // Delete: the reply author, or the ticket author (replies removed along with the ticket).
         allow update: if isAuthenticated() && canAccessTicket() && isValidThreadMessageUpvoteToggle();
-        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+        allow delete: if isAuthenticated()
+                      && (isOwner(resource.data.authorId)
+                          || get(/databases/$(database)/documents/tickets/$(ticketId)).data.authorId == request.auth.uid);
       }
     }
 
@@ -552,8 +556,11 @@ service cloud.firestore {
     // Collection: notifications (Réponses à mes tickets et commentaires de mes posts)
     // -------------------------------------------------------------------------
     match /notifications/{notificationId} {
-      // Read: only the recipient (queries filter on recipientId)
-      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+      // Read: the recipient (queries filter on recipientId), or the author of the action,
+      // who looks up their own notifications to remove them when deleting the content
+      allow read: if isAuthenticated()
+                  && (resource.data.recipientId == request.auth.uid
+                      || resource.data.actorId == request.auth.uid);
 
       // Create: written by the message author in the same batch as the message itself
       allow create: if isAuthenticated() && isValidNewNotification(request.resource.data);
@@ -564,7 +571,10 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
                     && request.resource.data.read == true;
 
-      allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+      // Delete: the recipient (clear, orphan notification) or the author of the deleted content
+      allow delete: if isAuthenticated()
+                    && (resource.data.recipientId == request.auth.uid
+                        || resource.data.actorId == request.auth.uid);
     }
 
     // -------------------------------------------------------------------------
