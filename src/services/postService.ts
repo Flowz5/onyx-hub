@@ -21,6 +21,7 @@ import { db } from "./firebase";
 import type { Post, NewPostFormData } from "../types/post";
 import { addProfileCounterStep } from "./profileService";
 import { addMentionNotifications } from "./notificationService";
+import { cleanupAfterDeletion, deleteParentWithThread, deleteRemovedImages } from "./cleanupService";
 import type { MentionTarget } from "../types/mention";
 
 const POSTS_COLLECTION = "posts";
@@ -70,31 +71,38 @@ export const createPostInFirestore = async (
   return postDocRef.id;
 };
 
-// Modification d'un post par son auteur (titre, contenu et tags uniquement)
+// Modification d'un post par son auteur (titre, contenu et tags uniquement).
+// Les images retirées du contenu sont ensuite supprimées.
 export const updatePostInFirestore = async (
   postId: string,
-  formData: NewPostFormData
+  formData: NewPostFormData,
+  previousContent: string
 ): Promise<void> => {
   await updateDoc(doc(db, POSTS_COLLECTION, postId), {
     title: formData.title,
     content: formData.content,
     tags: formData.tags,
   });
+  await deleteRemovedImages(previousContent, formData.content).catch((error) =>
+    console.warn("Nettoyage des images retirées du post :", error)
+  );
 };
 
-// Suppression d'un post par son auteur et décrémentation atomique des compteurs du canal et du profil
-export const deletePostFromFirestore = async (
-  postId: string,
-  channelId: string,
-  authorId: string
-): Promise<void> => {
-  const batch = writeBatch(db);
-  batch.delete(doc(db, POSTS_COLLECTION, postId));
-  batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
-    postsCount: increment(-1),
+// Suppression d'un post par son auteur avec ses commentaires,
+// décrémentation des compteurs du canal et du profil, puis nettoyage
+// de ses images (et de celles de ses propres commentaires) et des notifications qu'il a générées
+export const deletePostFromFirestore = async (post: Post, authorId: string): Promise<void> => {
+  const deletedComments = await deleteParentWithThread("posts", "comments", post.id, async (batch) => {
+    batch.update(doc(db, CHANNELS_COLLECTION, post.channelId), {
+      postsCount: increment(-1),
+    });
+    await addProfileCounterStep(batch, authorId, "postsCount", -1);
   });
-  await addProfileCounterStep(batch, authorId, "postsCount", -1);
-  await batch.commit();
+
+  const ownContents = deletedComments
+    .filter((comment) => comment.authorId === authorId)
+    .map((comment) => comment.content);
+  await cleanupAfterDeletion(authorId, post.id, [post.content, ...ownContents]);
 };
 
 // Bascule du vote positif (upvote) d'un étudiant sur un post
