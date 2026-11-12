@@ -5,9 +5,8 @@
 import {
   collection,
   doc,
-  addDoc,
-  deleteDoc,
   updateDoc,
+  writeBatch,
   onSnapshot,
   query,
   where,
@@ -22,8 +21,10 @@ import { db } from "./firebase";
 import type { Post, NewPostFormData } from "../types/post";
 
 const POSTS_COLLECTION = "posts";
+const CHANNELS_COLLECTION = "channels";
 
-// Création d'un post rattaché à un canal spécifique
+// Création d'un post rattaché à un canal spécifique.
+// L'écriture est atomique : le post est créé et le compteur du canal incrémenté dans le même lot.
 export const createPostInFirestore = async (
   channelId: string,
   formData: NewPostFormData,
@@ -42,14 +43,29 @@ export const createPostInFirestore = async (
     commentsCount: 0,
   };
 
-  const docRef = await addDoc(collection(db, POSTS_COLLECTION), postData);
-  return docRef.id;
+  // Génération préalable de la référence afin de l'inclure dans le lot d'écriture
+  const postDocRef = doc(collection(db, POSTS_COLLECTION));
+  const batch = writeBatch(db);
+  batch.set(postDocRef, postData);
+  batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
+    postsCount: increment(1),
+  });
+  await batch.commit();
+
+  return postDocRef.id;
 };
 
-// Suppression d'un post
-export const deletePostFromFirestore = async (postId: string): Promise<void> => {
-  const postDocRef = doc(db, POSTS_COLLECTION, postId);
-  await deleteDoc(postDocRef);
+// Suppression d'un post et décrémentation atomique du compteur du canal
+export const deletePostFromFirestore = async (
+  postId: string,
+  channelId: string
+): Promise<void> => {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, POSTS_COLLECTION, postId));
+  batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
+    postsCount: increment(-1),
+  });
+  await batch.commit();
 };
 
 // Bascule du vote positif (upvote) d'un étudiant sur un post
@@ -85,7 +101,10 @@ export const subscribeToChannelPosts = (
     orderBy("createdAt", "desc")
   );
 
-  return onSnapshot(
+  // Référence vers l'écouteur de repli, afin de pouvoir le désabonner lui aussi
+  let fallbackUnsubscribe: Unsubscribe | null = null;
+
+  const mainUnsubscribe = onSnapshot(
     postsQuery,
     (snapshot) => {
       const posts: Post[] = snapshot.docs.map((docSnap) => {
@@ -112,7 +131,7 @@ export const subscribeToChannelPosts = (
       console.warn("Écoute ordonnée des posts échouée, fallback requête simple :", error);
       // Fallback si l'index composé (channelId + createdAt) n'est pas encore créé
       const fallbackQuery = query(postsRef, where("channelId", "==", channelId));
-      return onSnapshot(
+      fallbackUnsubscribe = onSnapshot(
         fallbackQuery,
         (fallbackSnap) => {
           const fallbackPosts: Post[] = fallbackSnap.docs.map((docSnap) => {
@@ -146,4 +165,10 @@ export const subscribeToChannelPosts = (
       );
     }
   );
+
+  // Désabonnement global : écouteur principal et écouteur de repli éventuel
+  return () => {
+    mainUnsubscribe();
+    if (fallbackUnsubscribe) fallbackUnsubscribe();
+  };
 };

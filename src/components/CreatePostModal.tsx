@@ -5,7 +5,8 @@ import "./CreatePostModal.scss";
 interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: NewPostFormData) => void;
+  // Enregistrement asynchrone : la promesse est rejetée en cas d'échec Firestore
+  onSubmit: (data: NewPostFormData) => Promise<void>;
   suggestedTags?: string[];
 }
 
@@ -22,6 +23,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(["Discussion"]);
   const [customTagInput, setCustomTagInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Indicateur d'envoi en cours, empêchant les doubles soumissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,6 +33,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       setSelectedTags(["Discussion"]);
       setCustomTagInput("");
       setErrorMessage(null);
+      setIsSubmitting(false);
     }
   }, [isOpen]);
 
@@ -74,8 +78,9 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
     setErrorMessage(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const cleanTitle = title.trim();
     const cleanContent = content.trim();
 
@@ -95,11 +100,19 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
     }
 
     setErrorMessage(null);
-    onSubmit({
-      title: cleanTitle,
-      content: cleanContent,
-      tags: selectedTags,
-    });
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        title: cleanTitle,
+        content: cleanContent,
+        tags: selectedTags,
+      });
+    } catch {
+      // Message affiché dans la modale, qui reste ouverte pour permettre une nouvelle tentative
+      setErrorMessage("L'enregistrement a échoué. Vérifiez votre connexion puis réessayez.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -232,11 +245,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
           </div>
 
           <div className="modal-actions-footer">
-            <button type="button" className="cancel-btn" onClick={onClose}>
+            <button type="button" className="cancel-btn" onClick={onClose} disabled={isSubmitting}>
               Annuler
             </button>
-            <button type="submit" className="submit-create-btn">
-              Publier le post
+            <button type="submit" className="submit-create-btn" disabled={isSubmitting}>
+              {isSubmitting ? "Publication..." : "Publier le post"}
             </button>
           </div>
         </form>

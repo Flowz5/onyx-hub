@@ -349,6 +349,12 @@
         &:hover {
           background: linear-gradient(135deg, #FDB53D 0%, $color-orange 100%);
         }
+
+        // État pendant l'enregistrement Firestore
+        &:disabled {
+          opacity: 0.6;
+          cursor: wait;
+        }
       }
     }
   }

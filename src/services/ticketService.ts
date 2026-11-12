@@ -5,9 +5,9 @@
 import {
   collection,
   doc,
-  addDoc,
-  deleteDoc,
   updateDoc,
+  writeBatch,
+  increment,
   onSnapshot,
   query,
   where,
@@ -19,8 +19,10 @@ import { db } from "./firebase";
 import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
 
 const TICKETS_COLLECTION = "tickets";
+const CHANNELS_COLLECTION = "channels";
 
-// Création d'un ticket d'aide rattaché à un canal
+// Création d'un ticket d'aide rattaché à un canal.
+// L'écriture est atomique : le ticket est créé et le compteur du canal incrémenté dans le même lot.
 export const createTicketInFirestore = async (
   channelId: string,
   formData: NewTicketFormData,
@@ -39,8 +41,16 @@ export const createTicketInFirestore = async (
     repliesCount: 0,
   };
 
-  const docRef = await addDoc(collection(db, TICKETS_COLLECTION), ticketData);
-  return docRef.id;
+  // Génération préalable de la référence afin de l'inclure dans le lot d'écriture
+  const ticketDocRef = doc(collection(db, TICKETS_COLLECTION));
+  const batch = writeBatch(db);
+  batch.set(ticketDocRef, ticketData);
+  batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
+    ticketsCount: increment(1),
+  });
+  await batch.commit();
+
+  return ticketDocRef.id;
 };
 
 // Mise à jour de l'état d'avancement d'un ticket (ouvert, en cours, résolu)
@@ -54,12 +64,17 @@ export const updateTicketStatusInFirestore = async (
   });
 };
 
-// Suppression d'un ticket
+// Suppression d'un ticket et décrémentation atomique du compteur du canal
 export const deleteTicketFromFirestore = async (
-  ticketId: string
+  ticketId: string,
+  channelId: string
 ): Promise<void> => {
-  const ticketDocRef = doc(db, TICKETS_COLLECTION, ticketId);
-  await deleteDoc(ticketDocRef);
+  const batch = writeBatch(db);
+  batch.delete(doc(db, TICKETS_COLLECTION, ticketId));
+  batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
+    ticketsCount: increment(-1),
+  });
+  await batch.commit();
 };
 
 // Écoute en temps réel des tickets d'un canal
@@ -75,7 +90,10 @@ export const subscribeToChannelTickets = (
     orderBy("createdAt", "desc")
   );
 
-  return onSnapshot(
+  // Référence vers l'écouteur de repli, afin de pouvoir le désabonner lui aussi
+  let fallbackUnsubscribe: Unsubscribe | null = null;
+
+  const mainUnsubscribe = onSnapshot(
     ticketsQuery,
     (snapshot) => {
       const tickets: Ticket[] = snapshot.docs.map((docSnap) => {
@@ -102,7 +120,7 @@ export const subscribeToChannelTickets = (
       console.warn("Écoute ordonnée des tickets échouée, fallback requête simple :", error);
       // Fallback si l'index composé (channelId + createdAt) n'est pas encore créé
       const fallbackQuery = query(ticketsRef, where("channelId", "==", channelId));
-      return onSnapshot(
+      fallbackUnsubscribe = onSnapshot(
         fallbackQuery,
         (fallbackSnap) => {
           const fallbackTickets: Ticket[] = fallbackSnap.docs.map((docSnap) => {
@@ -136,4 +154,10 @@ export const subscribeToChannelTickets = (
       );
     }
   );
+
+  // Désabonnement global : écouteur principal et écouteur de repli éventuel
+  return () => {
+    mainUnsubscribe();
+    if (fallbackUnsubscribe) fallbackUnsubscribe();
+  };
 };

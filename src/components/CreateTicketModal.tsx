@@ -5,7 +5,8 @@ import "./CreateTicketModal.scss";
 interface CreateTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: NewTicketFormData) => void;
+  // Enregistrement asynchrone : la promesse est rejetée en cas d'échec Firestore
+  onSubmit: (data: NewTicketFormData) => Promise<void>;
   suggestedTags?: string[];
 }
 
@@ -23,6 +24,8 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(["Exercice"]);
   const [customTagInput, setCustomTagInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Indicateur d'envoi en cours, empêchant les doubles soumissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -32,6 +35,7 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
       setSelectedTags(["Exercice"]);
       setCustomTagInput("");
       setErrorMessage(null);
+      setIsSubmitting(false);
     }
   }, [isOpen]);
 
@@ -76,8 +80,9 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     setErrorMessage(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const cleanTitle = title.trim();
     const cleanDesc = description.trim();
 
@@ -97,12 +102,20 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     }
 
     setErrorMessage(null);
-    onSubmit({
-      title: cleanTitle,
-      description: cleanDesc,
-      priority,
-      tags: selectedTags,
-    });
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        title: cleanTitle,
+        description: cleanDesc,
+        priority,
+        tags: selectedTags,
+      });
+    } catch {
+      // Message affiché dans la modale, qui reste ouverte pour permettre une nouvelle tentative
+      setErrorMessage("L'enregistrement a échoué. Vérifiez votre connexion puis réessayez.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -262,11 +275,11 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
           </div>
 
           <div className="modal-actions-footer">
-            <button type="button" className="cancel-btn" onClick={onClose}>
+            <button type="button" className="cancel-btn" onClick={onClose} disabled={isSubmitting}>
               Annuler
             </button>
-            <button type="submit" className="submit-create-btn">
-              Ouvrir le ticket
+            <button type="submit" className="submit-create-btn" disabled={isSubmitting}>
+              {isSubmitting ? "Ouverture..." : "Ouvrir le ticket"}
             </button>
           </div>
         </form>
