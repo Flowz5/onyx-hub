@@ -98,9 +98,12 @@ export const TicketCard: React.FC<TicketCardProps> = ({
         </div>
       )}
 
-      {/* Pied de carte avec mise à jour du statut et options */}
+      {/* Pied de carte réservé à l'auteur : mise à jour du statut et options.
+          Les autres membres consultent le statut via le badge de l'en-tête. */}
+      {isAuthor && (
       <div className="ticket-card-footer">
-        {/* Sélecteur de mise à jour d'état */}
+        {/* Sélecteur de mise à jour d'état, réservé à l'auteur du ticket */}
+        {onUpdateStatus && (
         <div className="status-selector-wrapper">
           <label htmlFor={`ticket-status-${ticket.id}`} className="status-selector-label">
             Statut :
@@ -120,9 +123,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             <option value="resolved">Résolu</option>
           </select>
         </div>
+        )}
 
         {/* Actions réservées à l'auteur : modification et suppression */}
-        {isAuthor && (onEdit || onDelete) && (
+        {(onEdit || onDelete) && (
           <div className="author-actions">
             {onEdit && (
               <button
@@ -152,6 +156,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           </div>
         )}
       </div>
+      )}
     </article>
   );
 };

@@ -262,9 +262,10 @@ service cloud.firestore {
                     && isOwner(request.resource.data.authorId)
                     && isValidNewTicket(request.resource.data);
 
-      // Update: any channel member may change the status; the author may also edit the content.
+      // Update: reserved to the ticket author (status change or content edit).
       allow update: if isAuthenticated()
                     && canAccessChannel(resource.data.channelId)
+                    && isOwner(resource.data.authorId)
                     && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
                          && request.resource.data.status in ['open', 'in_progress', 'resolved'])
                         || isValidTicketEdit());
