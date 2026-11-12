@@ -111,11 +111,16 @@
     }
 
     .ticket-author-info {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
       font-size: 0.76rem;
       color: rgba(255, 255, 255, 0.5);
 
-      strong {
-        color: $color-white;
+      > span:first-child {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
       }
 
       .meta-separator {
