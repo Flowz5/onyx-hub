@@ -17,8 +17,11 @@ interface DiscussionThreadProps {
   // Type de fil : réponses d'un ticket ou commentaires d'un post
   kind: ThreadKind;
   parentId: string;
-  // Auteur du ticket ou du post, mis en évidence dans le fil
+  // Auteur du ticket ou du post, mis en évidence dans le fil et notifié des nouveaux messages
   parentAuthorId: string;
+  // Titre et canal du parent, repris dans la notification envoyée à son auteur
+  parentTitle: string;
+  channelId: string;
   // Options propres aux tickets : statut résolu et réponse retenue comme solution
   isResolved?: boolean;
   solutionMessageId?: string | null;
@@ -59,6 +62,8 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
   kind,
   parentId,
   parentAuthorId,
+  parentTitle,
+  channelId,
   isResolved = false,
   solutionMessageId = null,
 }) => {
@@ -99,7 +104,12 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
     setIsSending(true);
     setErrorMessage(null);
     try {
-      await addThreadMessage(kind, parentId, content, user);
+      await addThreadMessage(
+        kind,
+        { id: parentId, authorId: parentAuthorId, title: parentTitle, channelId },
+        content,
+        user
+      );
       setDraft("");
     } catch (error) {
       console.error("Erreur lors de l'envoi du message :", error);
