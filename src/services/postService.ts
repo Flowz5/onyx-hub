@@ -55,6 +55,18 @@ export const createPostInFirestore = async (
   return postDocRef.id;
 };
 
+// Modification d'un post par son auteur (titre, contenu et tags uniquement)
+export const updatePostInFirestore = async (
+  postId: string,
+  formData: NewPostFormData
+): Promise<void> => {
+  await updateDoc(doc(db, POSTS_COLLECTION, postId), {
+    title: formData.title,
+    content: formData.content,
+    tags: formData.tags,
+  });
+};
+
 // Suppression d'un post et décrémentation atomique du compteur du canal
 export const deletePostFromFirestore = async (
   postId: string,

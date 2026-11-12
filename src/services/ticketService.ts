@@ -64,6 +64,19 @@ export const updateTicketStatusInFirestore = async (
   });
 };
 
+// Modification d'un ticket par son auteur (sujet, description, priorité et tags)
+export const updateTicketInFirestore = async (
+  ticketId: string,
+  formData: NewTicketFormData
+): Promise<void> => {
+  await updateDoc(doc(db, TICKETS_COLLECTION, ticketId), {
+    title: formData.title,
+    description: formData.description,
+    priority: formData.priority,
+    tags: formData.tags,
+  });
+};
+
 // Suppression d'un ticket et décrémentation atomique du compteur du canal
 export const deleteTicketFromFirestore = async (
   ticketId: string,
