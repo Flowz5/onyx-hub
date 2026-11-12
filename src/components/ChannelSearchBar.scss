@@ -77,12 +77,13 @@
   // Zone de gestion des tags
   .tags-management-area {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    justify-content: space-between;
     gap: 1rem;
-    flex-wrap: wrap;
 
+    // Sur mobile, la recherche passe au-dessus des tags
     @media (max-width: 768px) {
-      flex-direction: column;
+      flex-direction: column-reverse;
       align-items: stretch;
     }
 
@@ -95,7 +96,12 @@
       border-radius: 50px;
       padding: 0 0.85rem;
       height: 36px;
-      min-width: 190px;
+      flex-shrink: 0;
+      width: 220px;
+
+      @media (max-width: 768px) {
+        width: 100%;
+      }
       transition: all 0.2s ease;
 
       &:focus-within {
@@ -147,6 +153,7 @@
       gap: 0.55rem;
       flex-wrap: wrap;
       flex: 1;
+      min-width: 0;
 
       .tag-pill {
         display: inline-flex;

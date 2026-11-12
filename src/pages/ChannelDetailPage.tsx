@@ -11,7 +11,7 @@ import { CreateTicketModal } from "../components/CreateTicketModal";
 import type { Channel } from "../types/channel";
 import type { Post, NewPostFormData } from "../types/post";
 import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
-import { getChannelById } from "../services/channelService";
+import { getChannelById, updateChannelMembers } from "../services/channelService";
 import {
   createPostInFirestore,
   deletePostFromFirestore,
@@ -26,7 +26,8 @@ import {
 } from "../services/ticketService";
 import "./ChannelDetailPage.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { ArrowLeft, MessagesSquare, Plus, Ticket as TicketIcon } from "lucide-react";
+import { ArrowLeft, Lock, MessagesSquare, Plus, Ticket as TicketIcon, Users } from "lucide-react";
+import { ChannelMembersModal } from "../components/ChannelMembersModal";
 
 // Page principale dédiée à la consultation intérieure d'un canal (Posts & Tickets)
 export const ChannelDetailPage: React.FC = () => {
@@ -54,6 +55,12 @@ export const ChannelDetailPage: React.FC = () => {
   // États des modales de création
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
+  // Modale de gestion des membres (canal privé, créateur uniquement)
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+
+  // Le canal est accessible une fois chargé ; sinon il est inexistant ou réservé à ses membres
+  const hasChannelAccess = Boolean(channel);
+  const isChannelOwner = Boolean(channel && user && channel.creatorId === user.uid);
 
   // 1. Chargement des informations du canal
   useEffect(() => {
@@ -81,35 +88,40 @@ export const ChannelDetailPage: React.FC = () => {
 
   // 2. Écoute en temps réel des posts du canal
   useEffect(() => {
-    if (!channelId) return;
+    if (!channelId || !hasChannelAccess) return;
     const unsubscribe = subscribeToChannelPosts(
       channelId,
       (loadedPosts) => setPosts(loadedPosts),
       (err) => console.error("Erreur écoute des posts :", err)
     );
     return () => unsubscribe();
-  }, [channelId]);
+  }, [channelId, hasChannelAccess]);
 
   // 3. Écoute en temps réel des tickets du canal
   useEffect(() => {
-    if (!channelId) return;
+    if (!channelId || !hasChannelAccess) return;
     const unsubscribe = subscribeToChannelTickets(
       channelId,
       (loadedTickets) => setTickets(loadedTickets),
       (err) => console.error("Erreur écoute des tickets :", err)
     );
     return () => unsubscribe();
-  }, [channelId]);
+  }, [channelId, hasChannelAccess]);
 
-  // Agrégation dynamique des tags disponibles dans le flux
+  // Agrégation des tags du flux, triés par importance :
+  // les tags du canal en premier, puis les autres par nombre d'utilisations décroissant
   const availableTags = useMemo(() => {
-    const set = new Set<string>();
-    if (channel?.tags) {
-      channel.tags.forEach((t) => set.add(t));
-    }
-    posts.forEach((p) => p.tags.forEach((t) => set.add(t)));
-    tickets.forEach((tk) => tk.tags.forEach((t) => set.add(t)));
-    return Array.from(set);
+    const usage = new Map<string, number>();
+    const countTag = (tag: string) => usage.set(tag, (usage.get(tag) || 0) + 1);
+    posts.forEach((p) => p.tags.forEach(countTag));
+    tickets.forEach((tk) => tk.tags.forEach(countTag));
+
+    const channelTags = channel?.tags || [];
+    const otherTags = Array.from(usage.keys())
+      .filter((tag) => !channelTags.includes(tag))
+      .sort((a, b) => (usage.get(b) || 0) - (usage.get(a) || 0) || a.localeCompare(b, "fr"));
+
+    return [...channelTags, ...otherTags];
   }, [channel, posts, tickets]);
 
   // Filtrage et tri des posts
@@ -217,6 +229,13 @@ export const ChannelDetailPage: React.FC = () => {
     }
   };
 
+  // Enregistrement de la liste des membres puis mise à jour locale du canal affiché
+  const handleSaveMembers = async (memberEmails: string[]) => {
+    if (!channelId) return;
+    await updateChannelMembers(channelId, memberEmails);
+    setChannel((previous) => (previous ? { ...previous, memberEmails } : previous));
+  };
+
   const channelDisplayName = channel?.name || channelId || "Canal";
 
   return (
@@ -268,7 +287,27 @@ export const ChannelDetailPage: React.FC = () => {
         </div>
       </nav>
 
-      {/* Contenu principal : Flux du canal */}
+      {/* Canal introuvable ou privé sans invitation */}
+      {!isChannelLoading && !channel ? (
+        <main className="channel-detail-main">
+          {/* Réutilisation du style de carte vide du flux */}
+          <div className="feed-scrollable-container">
+          <section className="empty-feed-card">
+            <span className="empty-icon">
+              <Lock className="onyx-icon" size={36} strokeWidth={2} aria-hidden="true" />
+            </span>
+            <h4>Canal inaccessible</h4>
+            <p>
+              Ce canal n'existe pas ou il est privé. Demandez à son créateur de vous inviter
+              avec l'adresse e-mail de votre compte.
+            </p>
+            <button type="button" className="empty-cta-btn" onClick={() => navigate("/channels")}>
+              Retour aux canaux
+            </button>
+          </section>
+          </div>
+        </main>
+      ) : (
       <main className="channel-detail-main">
         {/* En-tête informatif du canal */}
         <section className="channel-info-card">
@@ -289,6 +328,26 @@ export const ChannelDetailPage: React.FC = () => {
               ? "Chargement des détails du canal..."
               : channel?.description || "Espace d'échange et d'entraide entre étudiants."}
           </p>
+
+          {/* Informations d'accès d'un canal privé et gestion des membres par le créateur */}
+          {channel?.visibility === "private" && (
+            <div className="private-access-row">
+              <span className="members-summary">
+                <Users className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+                {channel.memberEmails.length} membre{channel.memberEmails.length > 1 ? "s" : ""} invité
+                {channel.memberEmails.length > 1 ? "s" : ""}
+              </span>
+              {isChannelOwner && (
+                <button
+                  type="button"
+                  className="manage-members-btn"
+                  onClick={() => setIsMembersModalOpen(true)}
+                >
+                  Gérer les membres
+                </button>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Sélecteur d'onglets (Posts vs Tickets) */}
@@ -404,7 +463,20 @@ export const ChannelDetailPage: React.FC = () => {
           onSubmit={handleCreateTicketSubmit}
           suggestedTags={channel?.tags}
         />
+
+        {/* Modale de gestion des membres du canal privé */}
+        {isChannelOwner && channel && (
+          <ChannelMembersModal
+            isOpen={isMembersModalOpen}
+            onClose={() => setIsMembersModalOpen(false)}
+            channelName={channel.name}
+            initialEmails={channel.memberEmails}
+            ownerEmail={user?.email}
+            onSave={handleSaveMembers}
+          />
+        )}
       </main>
+      )}
     </div>
   );
 };

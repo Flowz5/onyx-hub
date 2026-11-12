@@ -3,6 +3,11 @@ import "./ChannelSearchBar.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { X } from "lucide-react";
 
+// Nombre de tags principaux affichés par défaut (hors option "Tous"), hors recherche
+const MAX_VISIBLE_TAGS = 6;
+// Nombre maximal de résultats affichés lors d'une recherche de tags
+const MAX_SEARCH_RESULTS = 12;
+
 // Propriétés attendues pour le composant de recherche et de filtrage par tags
 interface ChannelSearchBarProps {
   searchQuery: string;
@@ -23,18 +28,30 @@ export const ChannelSearchBar: React.FC<ChannelSearchBarProps> = ({
   // État local pour la recherche spécifique au sein des tags
   const [tagSearchQuery, setTagSearchQuery] = useState("");
 
-  // Filtrage des tags disponibles selon la requête de recherche de tags
-  const filteredTags = useMemo(() => {
-    if (!tagSearchQuery.trim()) {
-      return availableTags;
-    }
+  // Sélection des tags affichés : les principaux par défaut, les correspondances en recherche.
+  // L'option "Tous" est toujours proposée en premier.
+  const { visibleTags, hiddenCount } = useMemo(() => {
+    const realTags = availableTags.filter((tag) => tag !== "Tous");
     const query = tagSearchQuery.toLowerCase().trim();
-    // On conserve toujours l'option "Tous" en premier
-    const matched = availableTags.filter(
-      (tag) => tag === "Tous" || tag.toLowerCase().includes(query)
-    );
-    return matched;
-  }, [availableTags, tagSearchQuery]);
+
+    if (query) {
+      const matched = realTags.filter((tag) => tag.toLowerCase().includes(query));
+      return {
+        visibleTags: ["Tous", ...matched.slice(0, MAX_SEARCH_RESULTS)],
+        hiddenCount: Math.max(matched.length - MAX_SEARCH_RESULTS, 0),
+      };
+    }
+
+    const mainTags = realTags.slice(0, MAX_VISIBLE_TAGS);
+    // Le tag actif reste toujours visible, même s'il ne fait pas partie des principaux
+    if (selectedTag !== "Tous" && !mainTags.includes(selectedTag)) {
+      mainTags.push(selectedTag);
+    }
+    return {
+      visibleTags: ["Tous", ...mainTags],
+      hiddenCount: Math.max(realTags.length - mainTags.length, 0),
+    };
+  }, [availableTags, tagSearchQuery, selectedTag]);
 
   return (
     <section className="channel-search-bar-component">
@@ -67,7 +84,29 @@ export const ChannelSearchBar: React.FC<ChannelSearchBarProps> = ({
 
       {/* Barre de gestion des tags avec recherche dédiée */}
       <div className="tags-management-area">
-        {/* Champ de recherche pour filtrer parmi la liste des tags */}
+        {/* Liste des pilules de tags */}
+        <div className="tags-pills-list">
+          {visibleTags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={`tag-pill ${selectedTag === tag ? "active" : ""}`}
+              onClick={() => onTagSelect(tag)}
+            >
+              {tag !== "Tous" && <span className="tag-hash">#</span>}
+              {tag}
+            </button>
+          ))}
+
+          {/* Indication du nombre de tags masqués, accessibles via la recherche */}
+          {hiddenCount > 0 && <span className="no-tags-matched">+{hiddenCount} autres</span>}
+
+          {tagSearchQuery && visibleTags.length === 1 && (
+            <span className="no-tags-matched">Aucun tag trouvé pour "{tagSearchQuery}"</span>
+          )}
+        </div>
+
+        {/* Champ de recherche des tags, aligné à droite */}
         <div className="tag-filter-search-wrapper">
           <span className="tag-search-icon" aria-hidden="true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -78,7 +117,7 @@ export const ChannelSearchBar: React.FC<ChannelSearchBarProps> = ({
           <input
             type="text"
             className="tag-filter-input"
-            placeholder="Filtrer les tags..."
+            placeholder="Rechercher un tag..."
             value={tagSearchQuery}
             onChange={(e) => setTagSearchQuery(e.target.value)}
           />
@@ -91,25 +130,6 @@ export const ChannelSearchBar: React.FC<ChannelSearchBarProps> = ({
             >
               <X className="onyx-icon" size={12} strokeWidth={2} aria-hidden="true" />
             </button>
-          )}
-        </div>
-
-        {/* Liste des pilules de tags */}
-        <div className="tags-pills-list">
-          {filteredTags.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className={`tag-pill ${selectedTag === tag ? "active" : ""}`}
-              onClick={() => onTagSelect(tag)}
-            >
-              {tag !== "Tous" && <span className="tag-hash">#</span>}
-              {tag}
-            </button>
-          ))}
-
-          {filteredTags.length === 0 && (
-            <span className="no-tags-matched">Aucun tag trouvé pour "{tagSearchQuery}"</span>
           )}
         </div>
       </div>

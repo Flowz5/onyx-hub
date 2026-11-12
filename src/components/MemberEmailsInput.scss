@@ -1,0 +1,151 @@
+// =====================================================================
+// FEUILLE DE STYLE DU CHAMP D'INVITATION DES MEMBRES PAR E-MAIL
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.member-emails-input-component {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+
+  // Ligne de saisie : champ e-mail et bouton d'invitation
+  .email-entry-row {
+    display: flex;
+    gap: 0.6rem;
+
+    @media (max-width: 480px) {
+      flex-direction: column;
+    }
+  }
+
+  .email-input-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 1rem;
+    background: rgba(10, 17, 32, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+
+    &:focus-within {
+      border-color: rgba(252, 163, 17, 0.7);
+      box-shadow: 0 0 0 3px rgba(252, 163, 17, 0.12);
+    }
+
+    .email-input-icon {
+      color: $color-orange;
+      opacity: 0.85;
+    }
+
+    .email-input {
+      flex: 1;
+      min-width: 0;
+      height: 42px;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      color: $color-white;
+
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+      }
+    }
+  }
+
+  // Bouton secondaire d'invitation
+  .add-member-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 1.1rem;
+    height: 44px;
+    background: rgba(252, 163, 17, 0.12);
+    border: 1px solid rgba(252, 163, 17, 0.45);
+    border-radius: 12px;
+    font-family: var(--font-body);
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: $color-orange;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background: rgba(252, 163, 17, 0.22);
+      color: $color-white;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+
+  .email-input-error {
+    font-size: 0.78rem;
+    color: #F87171;
+  }
+
+  // Liste des membres invités sous forme de pastilles
+  .member-chips-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    max-height: 140px;
+    overflow-y: auto;
+    list-style: none;
+
+    .member-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      max-width: 100%;
+      padding: 4px 6px 4px 12px;
+      background: rgba(20, 33, 61, 0.9);
+      border: 1px solid rgba(252, 163, 17, 0.3);
+      border-radius: 50px;
+      font-size: 0.78rem;
+      color: $color-alabaster-grey;
+
+      .member-email {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .remove-member-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.06);
+        border: none;
+        color: rgba(255, 255, 255, 0.55);
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover:not(:disabled) {
+          background: rgba(239, 68, 68, 0.25);
+          color: $color-white;
+        }
+      }
+    }
+  }
+
+  .no-members-hint,
+  .members-counter {
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .members-counter {
+    text-align: right;
+  }
+}

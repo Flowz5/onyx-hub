@@ -2,7 +2,7 @@ import React from "react";
 import type { Channel } from "../types/channel";
 import "./ChannelRow.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Pencil } from "lucide-react";
 
 // Propriétés attendues pour l'affichage d'une ligne de canal
 interface ChannelRowProps {
@@ -11,6 +11,8 @@ interface ChannelRowProps {
   currentUserEmail?: string;
   onSelectChannel: (channelId: string) => void;
   onDeleteChannel?: (channelId: string) => void;
+  // Ouverture de la modale d'édition (créateur uniquement)
+  onEditChannel?: (channel: Channel) => void;
 }
 
 // Composant représentant un canal sous forme de ligne horizontale interactive
@@ -20,11 +22,18 @@ export const ChannelRow: React.FC<ChannelRowProps> = ({
   currentUserEmail,
   onSelectChannel,
   onDeleteChannel,
+  onEditChannel,
 }) => {
   // Vérification de la propriété du canal par l'utilisateur connecté
   const isOwner =
     (currentUserId && channel.creatorId === currentUserId) ||
     (currentUserEmail && channel.createdBy === currentUserEmail);
+
+  // Gestionnaire d'édition sans déclencher la navigation vers le canal
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEditChannel) onEditChannel(channel);
+  };
 
   // Gestionnaire de suppression sans déclencher la navigation vers le canal
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -85,6 +94,19 @@ export const ChannelRow: React.FC<ChannelRowProps> = ({
             {channel.ticketsCount} tickets • {channel.postsCount} posts
           </span>
         </div>
+
+        {/* Bouton d'édition réservé au créateur du canal */}
+        {isOwner && onEditChannel && (
+          <button
+            type="button"
+            className="edit-channel-btn"
+            onClick={handleEditClick}
+            title="Modifier ce canal"
+            aria-label="Modifier ce canal"
+          >
+            <Pencil className="onyx-icon" size={15} strokeWidth={2} aria-hidden="true" />
+          </button>
+        )}
 
         {/* Bouton de suppression réservé au créateur du canal */}
         {isOwner && onDeleteChannel && (
