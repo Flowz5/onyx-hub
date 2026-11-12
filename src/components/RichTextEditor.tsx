@@ -3,7 +3,7 @@ import "./RichTextEditor.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { Code, Eye, ImagePlus, Link2, Loader2, PenLine, SquareCode } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { ACCEPTED_IMAGE_TYPES, uploadImage } from "../services/uploadService";
+import { ACCEPTED_IMAGE_TYPES, uploadImage } from "../services/imageService";
 import { RichContent } from "./RichContent";
 
 interface RichTextEditorProps {
@@ -88,7 +88,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const handleInsertCodeBlock = () =>
     insertAtCursor(`${blockPrefix()}\`\`\`${codeLanguage}\n`, "\n```\n", "// votre code ici");
 
-  // Envoi d'une image vers Firebase Storage puis insertion de sa référence Markdown
+  // Compression et enregistrement de l'image dans Firestore, puis insertion de sa référence Markdown
   const handleImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -160,7 +160,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             className="tool-btn"
             onClick={() => fileInputRef.current?.click()}
             disabled={isToolbarDisabled || isUploading}
-            title="Insérer une image (5 Mo max)"
+            title="Insérer une image (compressée automatiquement)"
             aria-label="Insérer une image"
           >
             {isUploading ? (

@@ -320,6 +320,28 @@ service cloud.firestore {
         allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
       }
     }
+
+    // -------------------------------------------------------------------------
+    // Collection: images (Images compressées insérées dans les contenus)
+    // -------------------------------------------------------------------------
+    match /images/{imageId} {
+      // Read: any signed-in student (images are referenced from posts, tickets and replies)
+      allow read: if isAuthenticated();
+
+      // Create: owner is the caller, encoded WebP/JPEG image kept well below the 1 MiB document limit
+      allow create: if isAuthenticated()
+                    && isOwner(request.resource.data.ownerId)
+                    && request.resource.data.keys().hasAll(['ownerId', 'dataUrl', 'createdAt'])
+                    && request.resource.data.keys().hasOnly(['ownerId', 'dataUrl', 'createdAt'])
+                    && request.resource.data.dataUrl is string
+                    && request.resource.data.dataUrl.size() <= 700000
+                    && request.resource.data.dataUrl.matches('^data:image/(webp|jpeg);base64,.+$')
+                    && request.resource.data.createdAt == request.time;
+
+      // Images are immutable; only their owner may delete them
+      allow update: if false;
+      allow delete: if isAuthenticated() && isOwner(resource.data.ownerId);
+    }
   }
 }
 
