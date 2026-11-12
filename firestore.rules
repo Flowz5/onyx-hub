@@ -1,0 +1,230 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Global Default Deny
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Authentication & Authorization Helper Functions
+    // -------------------------------------------------------------------------
+
+    // Checks if the client request is authenticated
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Checks if the authenticated user is the designated owner
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // -------------------------------------------------------------------------
+    // Domain Validator Functions: Channels
+    // -------------------------------------------------------------------------
+
+    // Validates list of tags: must contain between 1 and 5 non-empty string items (max 50 chars each)
+    function areValidTags(tags) {
+      return tags is list
+          && tags.size() >= 1
+          && tags.size() <= 5
+          && tags[0] is string && tags[0].size() > 0 && tags[0].size() <= 50
+          && (tags.size() < 2 || (tags[1] is string && tags[1].size() > 0 && tags[1].size() <= 50))
+          && (tags.size() < 3 || (tags[2] is string && tags[2].size() > 0 && tags[2].size() <= 50))
+          && (tags.size() < 4 || (tags[3] is string && tags[3].size() > 0 && tags[3].size() <= 50))
+          && (tags.size() < 5 || (tags[4] is string && tags[4].size() > 0 && tags[4].size() <= 50));
+    }
+
+    // Validates the complete channel schema for type safety, required keys, and bounds
+    function isValidChannel(data) {
+      return data.keys().hasAll([
+               'name', 'description', 'tags', 'visibility',
+               'creatorId', 'createdBy', 'createdAt',
+               'ticketsCount', 'postsCount'
+             ])
+          && data.keys().hasOnly([
+               'name', 'description', 'tags', 'visibility',
+               'creatorId', 'createdBy', 'createdAt',
+               'ticketsCount', 'postsCount'
+             ])
+          && data.name is string && data.name.size() >= 3 && data.name.size() <= 45
+          && data.description is string && data.description.size() <= 220
+          && areValidTags(data.tags)
+          && data.visibility is string && data.visibility in ['public', 'private']
+          && data.creatorId is string && data.creatorId.size() > 0 && data.creatorId.size() <= 128
+          && data.createdBy is string && data.createdBy.size() > 0 && data.createdBy.size() <= 100
+          && data.createdAt is timestamp
+          && data.ticketsCount is int && data.ticketsCount >= 0
+          && data.postsCount is int && data.postsCount >= 0;
+    }
+
+    // Additional validation rules specifically for document creation
+    function isValidNewChannel(data) {
+      return isValidChannel(data)
+          && data.createdAt <= request.time
+          && data.ticketsCount == 0
+          && data.postsCount == 0;
+    }
+
+    // Validates an atomic counter change (+1 or -1) touching a single field only.
+    // Used by post/ticket batched writes so that any member can keep channel counters in sync.
+    function isCounterStep(field) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([field])
+          && request.resource.data[field] is int
+          && request.resource.data[field] >= 0
+          && (request.resource.data[field] == resource.data[field] + 1
+              || request.resource.data[field] == resource.data[field] - 1);
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: channels
+    // -------------------------------------------------------------------------
+    match /channels/{channelId} {
+
+      // Read: Allows authenticated users to read channels.
+      // Query Alignment: Accommodates collection-wide queries like query(channelsRef, orderBy('createdAt', 'desc')).
+      allow read: if isAuthenticated();
+
+      // Create: Authenticated creator with valid schema, server-side timestamp, and initial 0 counters.
+      allow create: if isAuthenticated()
+                    && isOwner(request.resource.data.creatorId)
+                    && isValidNewChannel(request.resource.data);
+
+      // Update (1): Authenticated creator with full schema validation and immutable critical fields.
+      // Update (2): Any authenticated user may shift postsCount or ticketsCount by exactly one.
+      allow update: if (isAuthenticated()
+                        && isOwner(resource.data.creatorId)
+                        && isValidChannel(request.resource.data)
+                        && request.resource.data.creatorId == resource.data.creatorId
+                        && request.resource.data.createdAt == resource.data.createdAt
+                        && request.resource.data.createdBy == resource.data.createdBy)
+                    || (isAuthenticated()
+                        && (isCounterStep('postsCount') || isCounterStep('ticketsCount')));
+
+      // Delete: Only the channel creator can delete their channel.
+      allow delete: if isAuthenticated()
+                    && isOwner(resource.data.creatorId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Domain Validator Functions: Posts & Tickets
+    // -------------------------------------------------------------------------
+
+    // Validates optional tags on posts and tickets: list of at most 5 short strings
+    function areValidFeedTags(tags) {
+      return tags is list
+          && tags.size() <= 5
+          && (tags.size() < 1 || (tags[0] is string && tags[0].size() > 0 && tags[0].size() <= 50))
+          && (tags.size() < 2 || (tags[1] is string && tags[1].size() > 0 && tags[1].size() <= 50))
+          && (tags.size() < 3 || (tags[2] is string && tags[2].size() > 0 && tags[2].size() <= 50))
+          && (tags.size() < 4 || (tags[3] is string && tags[3].size() > 0 && tags[3].size() <= 50))
+          && (tags.size() < 5 || (tags[4] is string && tags[4].size() > 0 && tags[4].size() <= 50));
+    }
+
+    // Checks that the target channel document exists
+    function channelExists(channelId) {
+      return channelId is string
+          && channelId.size() > 0
+          && exists(/databases/$(database)/documents/channels/$(channelId));
+    }
+
+    // Validates a brand new post (schema, bounds, server timestamp, zeroed counters)
+    function isValidNewPost(data) {
+      return data.keys().hasAll([
+               'channelId', 'title', 'content', 'tags', 'authorId', 'authorName',
+               'createdAt', 'upvotesCount', 'upvotedBy', 'commentsCount'
+             ])
+          && data.keys().hasOnly([
+               'channelId', 'title', 'content', 'tags', 'authorId', 'authorName',
+               'createdAt', 'upvotesCount', 'upvotedBy', 'commentsCount'
+             ])
+          && channelExists(data.channelId)
+          && data.title is string && data.title.size() >= 4 && data.title.size() <= 120
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && areValidFeedTags(data.tags)
+          && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
+          && data.createdAt == request.time
+          && data.upvotesCount == 0
+          && data.upvotedBy is list && data.upvotedBy.size() == 0
+          && data.commentsCount == 0;
+    }
+
+    // Validates an upvote toggle: only the caller's own uid is added or removed, counter follows
+    function isValidUpvoteToggle() {
+      let before = resource.data.upvotedBy.toSet();
+      let after = request.resource.data.upvotedBy.toSet();
+      let me = [request.auth.uid].toSet();
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotesCount', 'upvotedBy'])
+          && ((after.difference(before) == me && before.difference(after).size() == 0
+               && request.resource.data.upvotesCount == resource.data.upvotesCount + 1)
+           || (before.difference(after) == me && after.difference(before).size() == 0
+               && request.resource.data.upvotesCount == resource.data.upvotesCount - 1));
+    }
+
+    // Validates a brand new ticket (schema, bounds, initial status, server timestamp)
+    function isValidNewTicket(data) {
+      return data.keys().hasAll([
+               'channelId', 'title', 'description', 'status', 'priority', 'tags',
+               'authorId', 'authorName', 'createdAt', 'repliesCount'
+             ])
+          && data.keys().hasOnly([
+               'channelId', 'title', 'description', 'status', 'priority', 'tags',
+               'authorId', 'authorName', 'createdAt', 'repliesCount'
+             ])
+          && channelExists(data.channelId)
+          && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
+          && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
+          && data.status == 'open'
+          && data.priority in ['low', 'medium', 'high']
+          && areValidFeedTags(data.tags)
+          && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
+          && data.createdAt == request.time
+          && data.repliesCount == 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: posts (Discussions et partages style Reddit)
+    // -------------------------------------------------------------------------
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+
+      // Create: author must be the caller, target channel must exist, schema strictly validated.
+      allow create: if isAuthenticated()
+                    && isOwner(request.resource.data.authorId)
+                    && isValidNewPost(request.resource.data);
+
+      // Update: restricted to the upvote toggle of the calling user.
+      allow update: if isAuthenticated()
+                    && isValidUpvoteToggle();
+
+      allow delete: if isAuthenticated()
+                    && isOwner(resource.data.authorId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: tickets (Demandes d'aide et d'assistance)
+    // -------------------------------------------------------------------------
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated();
+
+      // Create: author must be the caller, target channel must exist, schema strictly validated.
+      allow create: if isAuthenticated()
+                    && isOwner(request.resource.data.authorId)
+                    && isValidNewTicket(request.resource.data);
+
+      // Update: any member may move the status forward or back, nothing else.
+      allow update: if isAuthenticated()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                    && request.resource.data.status in ['open', 'in_progress', 'resolved'];
+
+      allow delete: if isAuthenticated()
+                    && isOwner(resource.data.authorId);
+    }
+  }
+}
+
