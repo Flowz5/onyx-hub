@@ -5,6 +5,8 @@ import { BadgeCheck, CircleAlert, CircleCheckBig, Send, Trash2, Undo2 } from "lu
 import { useAuth } from "../context/AuthContext";
 import { RichContent } from "./RichContent";
 import { AuthorLink } from "./UserAvatar";
+import { useMentionCandidates } from "../context/MentionContext";
+import { resolveMentionTargets } from "../types/mention";
 import { RichTextEditor } from "./RichTextEditor";
 import { MAX_THREAD_MESSAGE_LENGTH, type ThreadKind, type ThreadMessage } from "../types/thread";
 import {
@@ -73,6 +75,7 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
 }) => {
   const { user } = useAuth();
   const labels = LABELS[kind];
+  const mentionCandidates = useMentionCandidates();
   // Seul l'auteur d'un ticket peut désigner la solution (sans objet pour les posts)
   const canChooseSolution = kind === "tickets" && user?.uid === parentAuthorId;
 
@@ -112,7 +115,8 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
         kind,
         { id: parentId, authorId: parentAuthorId, title: parentTitle, channelId },
         content,
-        user
+        user,
+        resolveMentionTargets(content, mentionCandidates, [user.uid, parentAuthorId])
       );
       setDraft("");
     } catch (error) {

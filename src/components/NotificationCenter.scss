@@ -243,6 +243,12 @@
     color: #60A5FA;
   }
 
+  &.mentions {
+    background: rgba(192, 132, 252, 0.12);
+    border-color: rgba(192, 132, 252, 0.35);
+    color: #C084FC;
+  }
+
   &.postComments {
     background: rgba(52, 211, 153, 0.12);
     border-color: rgba(52, 211, 153, 0.35);
