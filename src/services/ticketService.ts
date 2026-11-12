@@ -18,6 +18,8 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { addProfileCounterStep } from "./profileService";
+import { addMentionNotifications } from "./notificationService";
+import type { MentionTarget } from "../types/mention";
 import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
 
 const TICKETS_COLLECTION = "tickets";
@@ -29,7 +31,9 @@ const USERS_COLLECTION = "users";
 export const createTicketInFirestore = async (
   channelId: string,
   formData: NewTicketFormData,
-  user: { uid: string; displayName?: string | null; email?: string | null }
+  user: { uid: string; displayName?: string | null; email?: string | null },
+  // Étudiants mentionnés dans la description, notifiés dans le même lot
+  mentions: MentionTarget[] = []
 ): Promise<string> => {
   const ticketData = {
     channelId,
@@ -54,6 +58,15 @@ export const createTicketInFirestore = async (
   });
   // Compteur de tickets du profil de l'auteur
   await addProfileCounterStep(batch, user.uid, "ticketsCount", 1);
+  addMentionNotifications(
+    batch,
+    "tickets",
+    ticketDocRef.id,
+    null,
+    { title: formData.title, channelId },
+    { uid: user.uid, name: ticketData.authorName },
+    mentions
+  );
   await batch.commit();
 
   return ticketDocRef.id;

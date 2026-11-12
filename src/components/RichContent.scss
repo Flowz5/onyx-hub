@@ -36,6 +36,20 @@
     }
   }
 
+  // Mention d'un étudiant : pastille dorée menant à son profil
+  a.rich-mention {
+    display: inline-block;
+    padding: 0 0.4em;
+    border-radius: 6px;
+    background: rgba(252, 163, 17, 0.14);
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      background: rgba(252, 163, 17, 0.24);
+    }
+  }
+
   ul,
   ol {
     padding-left: 1.4rem;

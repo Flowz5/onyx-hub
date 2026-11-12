@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth } from "../services/firebase";
 import { ensureUserProfile } from "../services/profileService";
+import { registerEmailIndex } from "../services/mentionService";
 
 interface AuthContextType {
   user: User | null;
@@ -34,6 +35,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error) {
           console.error("Erreur lors de la création du profil utilisateur :", error);
         }
+        // Annuaire des e-mails, nécessaire aux mentions dans les canaux privés (non bloquant)
+        registerEmailIndex(currentUser).catch((error) =>
+          console.error("Erreur lors de l'enregistrement dans l'annuaire :", error)
+        );
       }
       setUser(currentUser);
       setLoading(false);

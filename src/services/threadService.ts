@@ -17,7 +17,9 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { ThreadKind, ThreadMessage } from "../types/thread";
+import type { MentionTarget } from "../types/mention";
 import {
+  addMentionNotifications,
   buildThreadNotificationData,
   newNotificationRef,
   type NotificationParent,
@@ -39,7 +41,9 @@ export const addThreadMessage = async (
   kind: ThreadKind,
   parent: NotificationParent & { id: string },
   content: string,
-  user: { uid: string; displayName?: string | null; email?: string | null }
+  user: { uid: string; displayName?: string | null; email?: string | null },
+  // Étudiants mentionnés dans le message (l'auteur du parent, déjà notifié, en est exclu)
+  mentions: MentionTarget[] = []
 ): Promise<void> => {
   const { subcollection, counterField, notificationType } = THREAD_CONFIG[kind];
   const authorName = user.displayName || user.email || "Étudiant";
@@ -61,6 +65,15 @@ export const addThreadMessage = async (
       })
     );
   }
+  addMentionNotifications(
+    batch,
+    kind,
+    parent.id,
+    messageRef.id,
+    parent,
+    { uid: user.uid, name: authorName },
+    mentions.filter((mention) => mention.uid !== parent.authorId)
+  );
   await batch.commit();
 };
 

@@ -426,7 +426,9 @@ service cloud.firestore {
     // Domain Validator Functions: Notifications
     // -------------------------------------------------------------------------
 
-    // Common schema of a thread notification (reply to a ticket or comment on a post)
+    // Common schema of a notification (reply, comment or mention).
+    // messageId is null for a mention in the body of a post or ticket;
+    // recipientEmail is only set for a mention of an invited member of a private channel.
     function isValidNotificationShape(data) {
       return data.keys().hasAll([
                'recipientId', 'actorId', 'actorName', 'type', 'parentId', 'messageId',
@@ -434,13 +436,13 @@ service cloud.firestore {
              ])
           && data.keys().hasOnly([
                'recipientId', 'actorId', 'actorName', 'type', 'parentId', 'messageId',
-               'parentTitle', 'channelId', 'createdAt', 'read'
+               'parentTitle', 'channelId', 'createdAt', 'read', 'recipientEmail'
              ])
           && isOwner(data.actorId)
           && data.recipientId is string && data.recipientId != request.auth.uid
           && data.actorName is string && data.actorName.size() > 0 && data.actorName.size() <= 100
           && data.parentId is string && data.parentId.size() > 0
-          && data.messageId is string && data.messageId.size() > 0
+          && (data.messageId == null || (data.messageId is string && data.messageId.size() > 0))
           && data.createdAt == request.time
           && data.read == false;
     }
@@ -455,10 +457,59 @@ service cloud.firestore {
           && existsAfter(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)/$(subcollection)/$(data.messageId));
     }
 
+    // Checks that a Markdown content mentions the recipient: @[Name](/profile/<uid>)
+    function mentionsRecipient(content, recipientId) {
+      return content is string
+          && content.matches('[\\s\\S]*@\\[[^\\]]*\\]\\(/profile/' + recipientId + '\\)[\\s\\S]*');
+    }
+
+    // The mentioned student must be able to read the channel: public channel, its creator,
+    // or an invited member whose e-mail is registered in the e-mail directory under their uid.
+    function canRecipientAccessChannel(data) {
+      let channel = get(/databases/$(database)/documents/channels/$(data.channelId)).data;
+      return channel.visibility == 'public'
+          || channel.creatorId == data.recipientId
+          || (data.get('recipientEmail', null) is string
+              && data.recipientEmail in channel.memberEmails
+              && get(/databases/$(database)/documents/emailIndex/$(data.recipientEmail)).data.uid == data.recipientId);
+    }
+
+    // Mention in the body of a post (content) or ticket (description) created in the same batch
+    function isValidBodyMention(data, parentCollection, contentField) {
+      let parent = getAfter(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)).data;
+      return data.messageId == null
+          && parent.authorId == request.auth.uid
+          && parent.createdAt == request.time
+          && parent.title == data.parentTitle
+          && parent.channelId == data.channelId
+          && mentionsRecipient(parent[contentField], data.recipientId);
+    }
+
+    // Mention in a reply or comment created in the same batch
+    function isValidMessageMention(data, parentCollection, subcollection) {
+      let parent = get(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)).data;
+      let message = getAfter(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)/$(subcollection)/$(data.messageId)).data;
+      return message.authorId == request.auth.uid
+          && message.createdAt == request.time
+          && parent.title == data.parentTitle
+          && parent.channelId == data.channelId
+          && mentionsRecipient(message.content, data.recipientId);
+    }
+
+    function isValidMentionNotification(data, parentCollection, contentField, subcollection) {
+      return canRecipientAccessChannel(data)
+          && ((data.messageId == null && isValidBodyMention(data, parentCollection, contentField))
+              || (data.messageId is string && isValidMessageMention(data, parentCollection, subcollection)));
+    }
+
     function isValidNewNotification(data) {
       return isValidNotificationShape(data)
           && ((data.type == 'ticket_reply' && matchesThreadParent(data, 'tickets', 'replies'))
-              || (data.type == 'post_comment' && matchesThreadParent(data, 'posts', 'comments')));
+              || (data.type == 'post_comment' && matchesThreadParent(data, 'posts', 'comments'))
+              || (data.type == 'post_mention'
+                  && isValidMentionNotification(data, 'posts', 'content', 'comments'))
+              || (data.type == 'ticket_mention'
+                  && isValidMentionNotification(data, 'tickets', 'description', 'replies')));
     }
 
     // Validates the notification preferences and read state of a user
@@ -467,10 +518,11 @@ service cloud.firestore {
           && data.keys().hasOnly(['preferences', 'postsReadAt', 'readPostIds', 'clearedAt'])
           && data.preferences is map
           && data.preferences.keys().hasAll(['newPosts', 'ticketReplies', 'postComments'])
-          && data.preferences.keys().hasOnly(['newPosts', 'ticketReplies', 'postComments'])
+          && data.preferences.keys().hasOnly(['newPosts', 'ticketReplies', 'postComments', 'mentions'])
           && data.preferences.newPosts is bool
           && data.preferences.ticketReplies is bool
           && data.preferences.postComments is bool
+          && (!('mentions' in data.preferences) || data.preferences.mentions is bool)
           && data.postsReadAt is timestamp
           && data.postsReadAt <= request.time
           && data.readPostIds is list && data.readPostIds.size() <= 50
@@ -494,6 +546,23 @@ service cloud.firestore {
                     && request.resource.data.read == true;
 
       allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: emailIndex (Annuaire e-mail → uid, utilisé pour les mentions dans les canaux privés)
+    // -------------------------------------------------------------------------
+    match /emailIndex/{email} {
+      // Get only: an entry can be read when the exact e-mail is already known; listing is forbidden
+      allow get: if isAuthenticated();
+      allow list: if false;
+
+      // Each student registers their own lower-cased sign-in e-mail
+      allow create, update: if isAuthenticated()
+                            && request.auth.token.email != null
+                            && email == request.auth.token.email.lower()
+                            && request.resource.data.keys().hasOnly(['uid'])
+                            && request.resource.data.uid == request.auth.uid;
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------------------
