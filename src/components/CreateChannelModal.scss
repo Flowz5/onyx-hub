@@ -157,6 +157,11 @@
       margin-top: 0.35rem;
     }
 
+    // Indication placée entre le libellé et le champ d'invitation des membres
+    .members-hint {
+      margin: 0 0 0.65rem;
+    }
+
     .char-counter {
       align-self: flex-end;
       font-size: 0.72rem;
@@ -487,6 +492,12 @@
 
       &:active {
         transform: translateY(0);
+      }
+
+      // État pendant l'enregistrement Firestore
+      &:disabled {
+        opacity: 0.6;
+        cursor: wait;
       }
     }
   }

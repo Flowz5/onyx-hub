@@ -4,13 +4,21 @@ import "./CreateChannelModal.scss";
 import type { NewChannelFormData } from "../types/channel";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { Check, CircleAlert, Plus, X } from "lucide-react";
+import { MemberEmailsInput } from "./MemberEmailsInput";
 export type { NewChannelFormData };
 
 // Propriétés attendues par le composant modale
 interface CreateChannelModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: NewChannelFormData) => void;
+  // Enregistrement asynchrone : la promesse est rejetée en cas d'échec Firestore
+  onSubmit: (data: NewChannelFormData) => Promise<void>;
+  // Mode d'utilisation : création d'un canal ou édition d'un canal existant
+  mode?: "create" | "edit";
+  // Valeurs initiales du formulaire en mode édition
+  initialData?: NewChannelFormData | null;
+  // E-mail du créateur, exclu de la liste des invitations
+  currentUserEmail?: string | null;
 }
 
 // Tags thématiques prédéfinis proposés en suggestion rapide
@@ -19,7 +27,6 @@ const PRESET_TAGS = [
   "Cybersécurité",
   "Réseaux & Système",
   "Bases de Données",
-  "Maths & Algo",
   "Général",
 ];
 
@@ -28,26 +35,36 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
+  currentUserEmail,
+  mode = "create",
+  initialData = null,
 }) => {
+  const isEditMode = mode === "edit";
   // État local des champs du formulaire
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>(["Général"]);
   const [customTagInput, setCustomTagInput] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("public");
+  // Membres invités, pris en compte uniquement pour un canal privé
+  const [memberEmails, setMemberEmails] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Indicateur d'envoi en cours, empêchant les doubles soumissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Réinitialisation des états à chaque réouverture de la modale
+  // Réinitialisation des états à chaque ouverture : valeurs du canal édité ou valeurs par défaut
   useEffect(() => {
     if (isOpen) {
-      setName("");
-      setDescription("");
-      setSelectedTags(["Général"]);
+      setName(initialData?.name ?? "");
+      setDescription(initialData?.description ?? "");
+      setSelectedTags(initialData?.tags ?? ["Général"]);
       setCustomTagInput("");
-      setVisibility("public");
+      setVisibility(initialData?.visibility ?? "public");
+      setMemberEmails(initialData?.memberEmails ?? []);
       setErrorMessage(null);
+      setIsSubmitting(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   // Fermeture de la modale via la touche Échap
   useEffect(() => {
@@ -98,8 +115,9 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   };
 
   // Validation et soumission du formulaire
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const cleanName = name.trim();
 
     if (!cleanName) {
@@ -118,12 +136,21 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
     }
 
     setErrorMessage(null);
-    onSubmit({
-      name: cleanName,
-      description: description.trim(),
-      tags: selectedTags,
-      visibility,
-    });
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        name: cleanName,
+        description: description.trim(),
+        tags: selectedTags,
+        visibility,
+        memberEmails: visibility === "private" ? memberEmails : [],
+      });
+    } catch {
+      // Message affiché dans la modale, qui reste ouverte pour permettre une nouvelle tentative
+      setErrorMessage("L'enregistrement du canal a échoué. Vérifiez votre connexion puis réessayez.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -139,8 +166,14 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
         <div className="modal-header">
           <div className="header-title-area">
             <span className="modal-badge">ESPACE DE DISCUSSION</span>
-            <h2 id="modal-channel-title">Créer un nouveau canal</h2>
-            <p>Configurez la thématique, la description et la visibilité d'accès.</p>
+            <h2 id="modal-channel-title">
+              {isEditMode ? "Modifier le canal" : "Créer un nouveau canal"}
+            </h2>
+            <p>
+              {isEditMode
+                ? "Mettez à jour le nom, la description, les tags ou la visibilité d'accès."
+                : "Configurez la thématique, la description et la visibilité d'accès."}
+            </p>
           </div>
           <button
             type="button"
@@ -336,20 +369,41 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
             </div>
           </div>
 
+          {/* Invitation des membres, affichée uniquement pour un canal privé */}
+          {visibility === "private" && (
+            <div className="form-group">
+              <label className="form-label">Membres invités</label>
+              <p className="field-hint members-hint">
+                Ajoutez l'adresse e-mail du compte Onyx Hub de chaque étudiant autorisé.
+              </p>
+              <MemberEmailsInput
+                emails={memberEmails}
+                onChange={setMemberEmails}
+                ownerEmail={currentUserEmail}
+              />
+            </div>
+          )}
+
           {/* Boutons d'action en bas de la modale */}
           <div className="modal-actions-footer">
             <button
               type="button"
               className="cancel-btn"
               onClick={onClose}
+              disabled={isSubmitting}
             >
               Annuler
             </button>
             <button
               type="submit"
               className="submit-create-btn"
+              disabled={isSubmitting}
             >
-              Créer le canal
+              {isSubmitting
+                ? "Enregistrement..."
+                : isEditMode
+                  ? "Enregistrer les modifications"
+                  : "Créer le canal"}
             </button>
           </div>
         </form>

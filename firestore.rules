@@ -40,6 +40,29 @@ service cloud.firestore {
           && (tags.size() < 5 || (tags[4] is string && tags[4].size() > 0 && tags[4].size() <= 50));
     }
 
+    // Validates the invited members list of a private channel (lower-cased e-mail strings)
+    function isValidMemberEmails(emails) {
+      return emails is list && emails.size() <= 50;
+    }
+
+    // Checks whether the caller may access a channel document:
+    // public channel, channel creator, or e-mail listed among the invited members.
+    function isChannelMember(channel) {
+      return channel.visibility == 'public'
+          || channel.creatorId == request.auth.uid
+          || ('memberEmails' in channel
+              && request.auth.token.email != null
+              && request.auth.token.email.lower() in channel.memberEmails);
+    }
+
+    // Same check, resolved from a channel identifier (used by posts and tickets)
+    function canAccessChannel(channelId) {
+      return channelId is string
+          && channelId.size() > 0
+          && exists(/databases/$(database)/documents/channels/$(channelId))
+          && isChannelMember(get(/databases/$(database)/documents/channels/$(channelId)).data);
+    }
+
     // Validates the complete channel schema for type safety, required keys, and bounds
     function isValidChannel(data) {
       return data.keys().hasAll([
@@ -50,8 +73,9 @@ service cloud.firestore {
           && data.keys().hasOnly([
                'name', 'description', 'tags', 'visibility',
                'creatorId', 'createdBy', 'createdAt',
-               'ticketsCount', 'postsCount'
+               'ticketsCount', 'postsCount', 'memberEmails'
              ])
+          && (!('memberEmails' in data) || isValidMemberEmails(data.memberEmails))
           && data.name is string && data.name.size() >= 3 && data.name.size() <= 45
           && data.description is string && data.description.size() <= 220
           && areValidTags(data.tags)
@@ -68,7 +92,9 @@ service cloud.firestore {
       return isValidChannel(data)
           && data.createdAt <= request.time
           && data.ticketsCount == 0
-          && data.postsCount == 0;
+          && data.postsCount == 0
+          && 'memberEmails' in data
+          && (data.visibility == 'private' || data.memberEmails.size() == 0);
     }
 
     // Validates an atomic counter change (+1 or -1) touching a single field only.
@@ -86,9 +112,10 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /channels/{channelId} {
 
-      // Read: Allows authenticated users to read channels.
-      // Query Alignment: Accommodates collection-wide queries like query(channelsRef, orderBy('createdAt', 'desc')).
-      allow read: if isAuthenticated();
+      // Read: public channels, own channels, or private channels where the caller is invited.
+      // Query Alignment: the client issues three separate queries (visibility == 'public',
+      // creatorId == uid, memberEmails array-contains email) so that each one is provably allowed.
+      allow read: if isAuthenticated() && isChannelMember(resource.data);
 
       // Create: Authenticated creator with valid schema, server-side timestamp, and initial 0 counters.
       allow create: if isAuthenticated()
@@ -104,6 +131,7 @@ service cloud.firestore {
                         && request.resource.data.createdAt == resource.data.createdAt
                         && request.resource.data.createdBy == resource.data.createdBy)
                     || (isAuthenticated()
+                        && isChannelMember(resource.data)
                         && (isCounterStep('postsCount') || isCounterStep('ticketsCount')));
 
       // Delete: Only the channel creator can delete their channel.
@@ -126,13 +154,6 @@ service cloud.firestore {
           && (tags.size() < 5 || (tags[4] is string && tags[4].size() > 0 && tags[4].size() <= 50));
     }
 
-    // Checks that the target channel document exists
-    function channelExists(channelId) {
-      return channelId is string
-          && channelId.size() > 0
-          && exists(/databases/$(database)/documents/channels/$(channelId));
-    }
-
     // Validates a brand new post (schema, bounds, server timestamp, zeroed counters)
     function isValidNewPost(data) {
       return data.keys().hasAll([
@@ -143,7 +164,7 @@ service cloud.firestore {
                'channelId', 'title', 'content', 'tags', 'authorId', 'authorName',
                'createdAt', 'upvotesCount', 'upvotedBy', 'commentsCount'
              ])
-          && channelExists(data.channelId)
+          && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 4 && data.title.size() <= 120
           && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
           && areValidFeedTags(data.tags)
@@ -176,7 +197,7 @@ service cloud.firestore {
                'channelId', 'title', 'description', 'status', 'priority', 'tags',
                'authorId', 'authorName', 'createdAt', 'repliesCount'
              ])
-          && channelExists(data.channelId)
+          && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
           && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
           && data.status == 'open'
@@ -191,7 +212,8 @@ service cloud.firestore {
     // Collection: posts (Discussions et partages style Reddit)
     // -------------------------------------------------------------------------
     match /posts/{postId} {
-      allow read: if isAuthenticated();
+      // Read: restricted to members of the parent channel (queries filter on channelId)
+      allow read: if isAuthenticated() && canAccessChannel(resource.data.channelId);
 
       // Create: author must be the caller, target channel must exist, schema strictly validated.
       allow create: if isAuthenticated()
@@ -210,7 +232,8 @@ service cloud.firestore {
     // Collection: tickets (Demandes d'aide et d'assistance)
     // -------------------------------------------------------------------------
     match /tickets/{ticketId} {
-      allow read: if isAuthenticated();
+      // Read: restricted to members of the parent channel (queries filter on channelId)
+      allow read: if isAuthenticated() && canAccessChannel(resource.data.channelId);
 
       // Create: author must be the caller, target channel must exist, schema strictly validated.
       allow create: if isAuthenticated()
