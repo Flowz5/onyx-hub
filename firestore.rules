@@ -166,7 +166,7 @@ service cloud.firestore {
              ])
           && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 4 && data.title.size() <= 120
-          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 10000
           && areValidFeedTags(data.tags)
           && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
           && data.createdAt == request.time
@@ -193,7 +193,7 @@ service cloud.firestore {
       return isOwner(resource.data.authorId)
           && data.diff(resource.data).affectedKeys().hasOnly(['title', 'content', 'tags'])
           && data.title is string && data.title.size() >= 4 && data.title.size() <= 120
-          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 10000
           && areValidFeedTags(data.tags);
     }
 
@@ -203,9 +203,21 @@ service cloud.firestore {
       return isOwner(resource.data.authorId)
           && data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'priority', 'tags'])
           && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
-          && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
+          && data.description is string && data.description.size() > 0 && data.description.size() <= 10000
           && data.priority in ['low', 'medium', 'high']
           && areValidFeedTags(data.tags);
+    }
+
+    // Validates the selection (or removal) of the solution reply by the ticket author.
+    // The chosen reply must exist in the ticket's replies; marking it may also resolve the ticket.
+    function isValidSolutionChange(ticketId) {
+      let data = request.resource.data;
+      return isOwner(resource.data.authorId)
+          && data.diff(resource.data).affectedKeys().hasOnly(['solutionReplyId', 'status'])
+          && data.status in ['open', 'in_progress', 'resolved']
+          && (data.solutionReplyId == null
+              || (data.solutionReplyId is string
+                  && exists(/databases/$(database)/documents/tickets/$(ticketId)/replies/$(data.solutionReplyId))));
     }
 
     // Validates a brand new ticket (schema, bounds, initial status, server timestamp)
@@ -216,17 +228,30 @@ service cloud.firestore {
              ])
           && data.keys().hasOnly([
                'channelId', 'title', 'description', 'status', 'priority', 'tags',
-               'authorId', 'authorName', 'createdAt', 'repliesCount'
+               'authorId', 'authorName', 'createdAt', 'repliesCount', 'solutionReplyId'
              ])
+          && (!('solutionReplyId' in data) || data.solutionReplyId == null)
           && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
-          && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
+          && data.description is string && data.description.size() > 0 && data.description.size() <= 10000
           && data.status == 'open'
           && data.priority in ['low', 'medium', 'high']
           && areValidFeedTags(data.tags)
           && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
           && data.createdAt == request.time
           && data.repliesCount == 0;
+    }
+
+    // Validates a new thread message (ticket reply or post comment):
+    // author is the caller, strict schema, bounded Markdown content, server timestamp.
+    function isValidNewThreadMessage() {
+      let data = request.resource.data;
+      return isOwner(data.authorId)
+          && data.keys().hasAll(['content', 'authorId', 'authorName', 'createdAt'])
+          && data.keys().hasOnly(['content', 'authorId', 'authorName', 'createdAt'])
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
+          && data.createdAt == request.time;
     }
 
     // -------------------------------------------------------------------------
@@ -241,13 +266,32 @@ service cloud.firestore {
                     && isOwner(request.resource.data.authorId)
                     && isValidNewPost(request.resource.data);
 
-      // Update: upvote toggle of the calling user, or content edit by the author.
+      // Update: upvote toggle of the calling user, content edit by the author,
+      // or commentsCount shifted by one (batched with a comment write).
       allow update: if isAuthenticated()
                     && canAccessChannel(resource.data.channelId)
-                    && (isValidUpvoteToggle() || isValidPostEdit());
+                    && (isValidUpvoteToggle() || isValidPostEdit() || isCounterStep('commentsCount'));
 
       allow delete: if isAuthenticated()
                     && isOwner(resource.data.authorId);
+
+      // -----------------------------------------------------------------------
+      // Subcollection: comments (Commentaires des membres du canal sur un post)
+      // -----------------------------------------------------------------------
+      match /comments/{commentId} {
+        // Access follows the parent post's channel
+        function canAccessPost() {
+          return exists(/databases/$(database)/documents/posts/$(postId))
+              && canAccessChannel(get(/databases/$(database)/documents/posts/$(postId)).data.channelId);
+        }
+
+        allow read: if isAuthenticated() && canAccessPost();
+        allow create: if isAuthenticated() && canAccessPost() && isValidNewThreadMessage();
+
+        // Comments are immutable; only their author may delete them.
+        allow update: if false;
+        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -262,15 +306,59 @@ service cloud.firestore {
                     && isOwner(request.resource.data.authorId)
                     && isValidNewTicket(request.resource.data);
 
-      // Update: any channel member may change the status; the author may also edit the content.
+      // Update (1): reserved to the ticket author (status change or content edit).
+      // Update (2): any channel member may shift repliesCount by one (batched with a reply write).
       allow update: if isAuthenticated()
                     && canAccessChannel(resource.data.channelId)
-                    && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-                         && request.resource.data.status in ['open', 'in_progress', 'resolved'])
-                        || isValidTicketEdit());
+                    && ((isOwner(resource.data.authorId)
+                         && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                              && request.resource.data.status in ['open', 'in_progress', 'resolved'])
+                             || isValidTicketEdit()
+                             || isValidSolutionChange(ticketId)))
+                        || isCounterStep('repliesCount'));
 
       allow delete: if isAuthenticated()
                     && isOwner(resource.data.authorId);
+
+      // -----------------------------------------------------------------------
+      // Subcollection: replies (Réponses des membres du canal à un ticket)
+      // -----------------------------------------------------------------------
+      match /replies/{replyId} {
+        // Access follows the parent ticket's channel
+        function canAccessTicket() {
+          return exists(/databases/$(database)/documents/tickets/$(ticketId))
+              && canAccessChannel(get(/databases/$(database)/documents/tickets/$(ticketId)).data.channelId);
+        }
+
+        allow read: if isAuthenticated() && canAccessTicket();
+        allow create: if isAuthenticated() && canAccessTicket() && isValidNewThreadMessage();
+
+        // Replies are immutable; only their author may delete them.
+        allow update: if false;
+        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: images (Images compressées insérées dans les contenus)
+    // -------------------------------------------------------------------------
+    match /images/{imageId} {
+      // Read: any signed-in student (images are referenced from posts, tickets and replies)
+      allow read: if isAuthenticated();
+
+      // Create: owner is the caller, encoded WebP/JPEG image kept well below the 1 MiB document limit
+      allow create: if isAuthenticated()
+                    && isOwner(request.resource.data.ownerId)
+                    && request.resource.data.keys().hasAll(['ownerId', 'dataUrl', 'createdAt'])
+                    && request.resource.data.keys().hasOnly(['ownerId', 'dataUrl', 'createdAt'])
+                    && request.resource.data.dataUrl is string
+                    && request.resource.data.dataUrl.size() <= 700000
+                    && request.resource.data.dataUrl.matches('^data:image/(webp|jpeg);base64,.+$')
+                    && request.resource.data.createdAt == request.time;
+
+      // Images are immutable; only their owner may delete them
+      allow update: if false;
+      allow delete: if isAuthenticated() && isOwner(resource.data.ownerId);
     }
   }
 }

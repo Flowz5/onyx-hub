@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import type { Ticket, TicketStatus } from "../types/ticket";
 import "./TicketCard.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, MessageSquareReply, Pencil, Trash2 } from "lucide-react";
+import { DiscussionThread } from "./DiscussionThread";
+import { RichContent } from "./RichContent";
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -36,6 +38,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   onEdit,
 }) => {
   const isAuthor = currentUserId && ticket.authorId === currentUserId;
+  // Affichage du fil de réponses (chargé uniquement à l'ouverture)
+  const [areRepliesOpen, setAreRepliesOpen] = useState(false);
 
   const formattedDate = new Date(ticket.createdAt).toLocaleDateString("fr-FR", {
     day: "numeric",
@@ -85,7 +89,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
       <h3 className="ticket-title">{ticket.title}</h3>
 
       {/* Description du problème rencontré */}
-      <p className="ticket-description">{ticket.description}</p>
+      <RichContent className="ticket-description" content={ticket.description} />
 
       {/* Thématiques et Tags associés */}
       {ticket.tags.length > 0 && (
@@ -98,60 +102,88 @@ export const TicketCard: React.FC<TicketCardProps> = ({
         </div>
       )}
 
-      {/* Pied de carte avec mise à jour du statut et options */}
+      {/* Pied de carte : accès aux réponses pour tous, contrôles réservés à l'auteur */}
       <div className="ticket-card-footer">
-        {/* Sélecteur de mise à jour d'état */}
-        <div className="status-selector-wrapper">
-          <label htmlFor={`ticket-status-${ticket.id}`} className="status-selector-label">
-            Statut :
-          </label>
-          <select
-            id={`ticket-status-${ticket.id}`}
-            className="status-dropdown"
-            value={ticket.status}
-            onChange={(e) => {
-              if (onUpdateStatus) {
-                onUpdateStatus(ticket.id, e.target.value as TicketStatus);
-              }
-            }}
-          >
-            <option value="open">Ouvert</option>
-            <option value="in_progress">En cours</option>
-            <option value="resolved">Résolu</option>
-          </select>
-        </div>
+        <button
+          type="button"
+          className={`toggle-replies-btn ${areRepliesOpen ? "open" : ""}`}
+          onClick={() => setAreRepliesOpen((isOpen) => !isOpen)}
+          aria-expanded={areRepliesOpen}
+        >
+          <MessageSquareReply className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+          {ticket.repliesCount > 0
+            ? `${ticket.repliesCount} réponse${ticket.repliesCount > 1 ? "s" : ""}`
+            : "Répondre"}
+          {/* Indication d'une solution retenue */}
+          {ticket.solutionReplyId && <span className="solution-flag">· Solution trouvée</span>}
+          <ChevronDown className="onyx-icon chevron" size={14} strokeWidth={2} aria-hidden="true" />
+        </button>
 
-        {/* Actions réservées à l'auteur : modification et suppression */}
-        {isAuthor && (onEdit || onDelete) && (
-          <div className="author-actions">
-            {onEdit && (
-              <button
-                type="button"
-                className="edit-ticket-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(ticket);
-                }}
-                title="Modifier mon ticket"
-                aria-label="Modifier mon ticket"
-              >
-                <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
-              </button>
+        {isAuthor && (
+          <div className="author-controls">
+            {/* Sélecteur de mise à jour d'état, réservé à l'auteur du ticket */}
+            {onUpdateStatus && (
+              <div className="status-selector-wrapper">
+                <label htmlFor={`ticket-status-${ticket.id}`} className="status-selector-label">
+                  Statut :
+                </label>
+                <select
+                  id={`ticket-status-${ticket.id}`}
+                  className="status-dropdown"
+                  value={ticket.status}
+                  onChange={(e) => onUpdateStatus(ticket.id, e.target.value as TicketStatus)}
+                >
+                  <option value="open">Ouvert</option>
+                  <option value="in_progress">En cours</option>
+                  <option value="resolved">Résolu</option>
+                </select>
+              </div>
             )}
-            {onDelete && (
-              <button
-                type="button"
-                className="delete-ticket-btn"
-                onClick={handleDeleteClick}
-                title="Supprimer mon ticket"
-                aria-label="Supprimer mon ticket"
-              >
-                <Trash2 className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
-              </button>
+
+            {/* Actions de l'auteur : modification et suppression */}
+            {(onEdit || onDelete) && (
+              <div className="author-actions">
+                {onEdit && (
+                  <button
+                    type="button"
+                    className="edit-ticket-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(ticket);
+                    }}
+                    title="Modifier mon ticket"
+                    aria-label="Modifier mon ticket"
+                  >
+                    <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    className="delete-ticket-btn"
+                    onClick={handleDeleteClick}
+                    title="Supprimer mon ticket"
+                    aria-label="Supprimer mon ticket"
+                  >
+                    <Trash2 className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Fil de réponses déplié */}
+      {areRepliesOpen && (
+        <DiscussionThread
+          kind="tickets"
+          parentId={ticket.id}
+          parentAuthorId={ticket.authorId}
+          isResolved={ticket.status === "resolved"}
+          solutionMessageId={ticket.solutionReplyId}
+        />
+      )}
     </article>
   );
 };

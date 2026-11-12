@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import type { NewTicketFormData, TicketPriority } from "../types/ticket";
+import {
+  MAX_TICKET_DESCRIPTION_LENGTH,
+  type NewTicketFormData,
+  type TicketPriority,
+} from "../types/ticket";
+import { RichTextEditor } from "./RichTextEditor";
 import "./CreateTicketModal.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { Check, CircleAlert, Plus, SignalHigh, SignalLow, SignalMedium, X } from "lucide-react";
@@ -221,14 +226,16 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
             <label htmlFor="ticket-desc-input" className="form-label">
               Description détaillée du blocage <span className="required-mark">*</span>
             </label>
-            <textarea
+            {/* Éditeur enrichi : texte, liens, captures d'écran et blocs de code */}
+            <RichTextEditor
               id="ticket-desc-input"
-              className="modal-textarea"
-              rows={5}
-              placeholder="Collez vos messages d'erreur, le contexte du code ou la question spécifique..."
+              rows={6}
+              maxLength={MAX_TICKET_DESCRIPTION_LENGTH}
+              placeholder="Collez vos messages d'erreur dans un bloc de code, ajoutez une capture d'écran ou un lien..."
               value={description}
-              onChange={(e) => {
-                setDescription(e.target.value);
+              disabled={isSubmitting}
+              onChange={(nextValue) => {
+                setDescription(nextValue);
                 if (errorMessage) setErrorMessage(null);
               }}
             />

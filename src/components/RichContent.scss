@@ -1,0 +1,221 @@
+// =====================================================================
+// FEUILLE DE STYLE DU CONTENU ENRICHI (MARKDOWN, IMAGES, BLOCS DE CODE)
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.rich-content {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: $color-alabaster-grey;
+  overflow-wrap: anywhere;
+
+  > * + * {
+    margin-top: 0.7rem;
+  }
+
+  p {
+    white-space: pre-wrap;
+  }
+
+  strong {
+    color: $color-white;
+  }
+
+  // Liens aux couleurs Onyx
+  a {
+    color: $color-orange;
+    text-decoration: underline;
+    text-decoration-color: rgba(252, 163, 17, 0.4);
+    text-underline-offset: 2px;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #FDB53D;
+      text-decoration-color: currentColor;
+    }
+  }
+
+  ul,
+  ol {
+    padding-left: 1.4rem;
+
+    li + li {
+      margin-top: 0.25rem;
+    }
+  }
+
+  blockquote {
+    padding: 0.4rem 0.9rem;
+    border-left: 3px solid rgba(252, 163, 17, 0.5);
+    background: rgba(252, 163, 17, 0.05);
+    border-radius: 0 8px 8px 0;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  // Images insérées, limitées en hauteur pour garder le flux lisible
+  .rich-image-link {
+    display: inline-block;
+    max-width: 100%;
+    text-decoration: none;
+
+    img {
+      display: block;
+      max-width: 100%;
+      max-height: 360px;
+      object-fit: contain;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.25);
+    }
+  }
+
+  // Emplacement affiché pendant le chargement ou en cas d'image indisponible
+  .rich-image-placeholder {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.6rem 0.9rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  // Code en ligne
+  :not(pre) > code {
+    padding: 1px 6px;
+    background: rgba(252, 163, 17, 0.1);
+    border: 1px solid rgba(252, 163, 17, 0.2);
+    border-radius: 6px;
+    font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+    font-size: 0.82em;
+    color: #FDB53D;
+  }
+
+  // Bloc de code avec en-tête
+  .rich-code-block {
+    overflow: hidden;
+    background: #070C17;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.35rem 0.6rem 0.35rem 0.9rem;
+      background: rgba(20, 33, 61, 0.8);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+      .code-language {
+        font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: lowercase;
+        color: $color-orange;
+      }
+
+      .copy-code-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 6px;
+        font-family: var(--font-body);
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.65);
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: rgba(252, 163, 17, 0.5);
+          color: $color-white;
+        }
+      }
+    }
+
+    pre {
+      margin: 0;
+      padding: 0.9rem 1rem;
+      overflow-x: auto;
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+      font-size: 0.8rem;
+      line-height: 1.55;
+      white-space: pre;
+      overflow-wrap: normal;
+
+      code {
+        color: #E5E5E5;
+      }
+    }
+  }
+
+  // Thème de coloration syntaxique « Black & Gold »
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-built_in,
+  .hljs-meta .hljs-keyword {
+    color: #FCA311;
+  }
+
+  .hljs-string,
+  .hljs-attr,
+  .hljs-template-tag,
+  .hljs-regexp {
+    color: #A7E07A;
+  }
+
+  .hljs-number,
+  .hljs-literal,
+  .hljs-symbol {
+    color: #F78C6C;
+  }
+
+  .hljs-title,
+  .hljs-title.function_,
+  .hljs-section {
+    color: #82AAFF;
+  }
+
+  .hljs-type,
+  .hljs-title.class_,
+  .hljs-class .hljs-title {
+    color: #FFCB6B;
+  }
+
+  .hljs-variable,
+  .hljs-params,
+  .hljs-property {
+    color: #E5E5E5;
+  }
+
+  .hljs-comment,
+  .hljs-quote {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+  }
+
+  .hljs-tag,
+  .hljs-name,
+  .hljs-selector-class,
+  .hljs-selector-id {
+    color: #C792EA;
+  }
+
+  .hljs-meta,
+  .hljs-doctag {
+    color: #89DDFF;
+  }
+
+  .hljs-deletion {
+    color: #F87171;
+  }
+
+  .hljs-addition {
+    color: #4ADE80;
+  }
+}
