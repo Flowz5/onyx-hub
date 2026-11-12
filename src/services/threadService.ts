@@ -7,6 +7,9 @@
 import {
   collection,
   doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
   writeBatch,
   increment,
   onSnapshot,
@@ -90,6 +93,22 @@ export const deleteThreadMessage = async (
   await batch.commit();
 };
 
+// Bascule du vote positif d'un étudiant sur une réponse à un ticket ou un commentaire de post
+// (les champs absents des anciens messages sont créés par increment et arrayUnion)
+export const toggleThreadMessageUpvote = async (
+  kind: ThreadKind,
+  parentId: string,
+  messageId: string,
+  userId: string,
+  isCurrentlyUpvoted: boolean
+): Promise<void> => {
+  const { subcollection } = THREAD_CONFIG[kind];
+  await updateDoc(doc(db, kind, parentId, subcollection, messageId), {
+    upvotedBy: isCurrentlyUpvoted ? arrayRemove(userId) : arrayUnion(userId),
+    upvotesCount: increment(isCurrentlyUpvoted ? -1 : 1),
+  });
+};
+
 // Écoute en temps réel des messages d'un fil, du plus ancien au plus récent
 export const subscribeToThreadMessages = (
   kind: ThreadKind,
@@ -118,6 +137,8 @@ export const subscribeToThreadMessages = (
           createdAt: data.createdAt?.toDate
             ? data.createdAt.toDate().toISOString()
             : new Date().toISOString(),
+          upvotesCount: data.upvotesCount || 0,
+          upvotedBy: Array.isArray(data.upvotedBy) ? data.upvotedBy : [],
         };
       });
       onMessagesUpdate(messages);

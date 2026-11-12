@@ -104,10 +104,50 @@
         color: #C084FC;
       }
 
+      // Actions sous le message : vote et choix de la solution
+      .message-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.6rem;
+      }
+
+      .message-upvote-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 50px;
+        font-family: var(--font-body);
+        font-size: 0.76rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover:not(:disabled) {
+          border-color: rgba(252, 163, 17, 0.55);
+          color: $color-orange;
+        }
+
+        &.upvoted {
+          background: rgba(252, 163, 17, 0.14);
+          border-color: rgba(252, 163, 17, 0.55);
+          color: $color-orange;
+        }
+
+        // Sa propre réponse : compteur affiché, vote impossible
+        &:disabled {
+          cursor: default;
+          opacity: 0.6;
+        }
+      }
+
       .solution-toggle-btn {
         display: inline-flex;
         align-items: center;
-        margin-top: 0.6rem;
         padding: 4px 12px;
         background: transparent;
         border: 1px solid rgba(168, 85, 247, 0.35);
@@ -201,4 +241,17 @@
       }
     }
   }
+}
+
+// Texte réservé aux lecteurs d'écran
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
