@@ -14,6 +14,9 @@ export interface ThreadMessage {
   authorId: string;
   authorName: string;
   createdAt: string;
+  // Votes positifs (0 pour les messages publiés avant l'ajout des votes)
+  upvotesCount: number;
+  upvotedBy: string[];
 }
 
 // Longueur maximale d'un message (Markdown, blocs de code inclus)

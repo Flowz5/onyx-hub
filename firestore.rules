@@ -187,6 +187,23 @@ service cloud.firestore {
                && request.resource.data.upvotesCount == resource.data.upvotesCount - 1));
     }
 
+    // Validates an upvote toggle on a ticket reply or post comment by another student.
+    // Messages created before votes existed have no counter yet: defaults apply.
+    function isValidThreadMessageUpvoteToggle() {
+      let before = resource.data.get('upvotedBy', []).toSet();
+      let after = request.resource.data.upvotedBy.toSet();
+      let me = [request.auth.uid].toSet();
+      let previousCount = resource.data.get('upvotesCount', 0);
+      return resource.data.authorId != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotesCount', 'upvotedBy'])
+          && request.resource.data.upvotedBy is list
+          && request.resource.data.upvotesCount is int
+          && ((after.difference(before) == me && before.difference(after).size() == 0
+               && request.resource.data.upvotesCount == previousCount + 1)
+           || (before.difference(after) == me && after.difference(before).size() == 0
+               && request.resource.data.upvotesCount == previousCount - 1));
+    }
+
     // Validates an author edit of a post: only title, content and tags may change
     function isValidPostEdit() {
       let data = request.resource.data;
@@ -295,8 +312,9 @@ service cloud.firestore {
         allow read: if isAuthenticated() && canAccessPost();
         allow create: if isAuthenticated() && canAccessPost() && isValidNewThreadMessage();
 
-        // Comments are immutable; only their author may delete them.
-        allow update: if false;
+        // Comments are immutable, except for upvotes by other channel members;
+        // only their author may delete them.
+        allow update: if isAuthenticated() && canAccessPost() && isValidThreadMessageUpvoteToggle();
         allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
       }
     }
@@ -342,8 +360,9 @@ service cloud.firestore {
         allow read: if isAuthenticated() && canAccessTicket();
         allow create: if isAuthenticated() && canAccessTicket() && isValidNewThreadMessage();
 
-        // Replies are immutable; only their author may delete them.
-        allow update: if false;
+        // Replies are immutable, except for upvotes by other channel members;
+        // only their author may delete them.
+        allow update: if isAuthenticated() && canAccessTicket() && isValidThreadMessageUpvoteToggle();
         allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
       }
     }

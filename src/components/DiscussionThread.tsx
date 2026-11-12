@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./DiscussionThread.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { BadgeCheck, CircleAlert, CircleCheckBig, Send, Trash2, Undo2 } from "lucide-react";
+import { ArrowBigUp, BadgeCheck, CircleAlert, CircleCheckBig, Send, Trash2, Undo2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { RichContent } from "./RichContent";
 import { AuthorLink } from "./UserAvatar";
@@ -13,6 +13,7 @@ import {
   addThreadMessage,
   deleteThreadMessage,
   subscribeToThreadMessages,
+  toggleThreadMessageUpvote,
 } from "../services/threadService";
 import { setTicketSolution } from "../services/ticketService";
 
@@ -42,6 +43,7 @@ const LABELS: Record<
     placeholder: string;
     submit: string;
     ariaLabel: string;
+    upvoteTitle: string;
   }
 > = {
   tickets: {
@@ -51,6 +53,7 @@ const LABELS: Record<
     placeholder: "Proposez une piste, une explication ou une solution (blocs de code bienvenus)...",
     submit: "Répondre",
     ariaLabel: "Réponses au ticket",
+    upvoteTitle: "Cette réponse est utile",
   },
   posts: {
     noun: "commentaire",
@@ -59,6 +62,7 @@ const LABELS: Record<
     placeholder: "Ajoutez un commentaire, un lien ou un extrait de code...",
     submit: "Commenter",
     ariaLabel: "Commentaires du post",
+    upvoteTitle: "J'aime ce commentaire",
   },
 };
 
@@ -127,12 +131,36 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
     }
   };
 
-  // Messages ordonnés : la solution éventuelle est épinglée en tête du fil
+  // Messages ordonnés : la solution éventuelle est épinglée en tête du fil,
+  // puis les messages suivent par nombre de votes décroissant (puis par date)
   const orderedMessages = useMemo(() => {
+    const others = messages
+      .filter((message) => message.id !== solutionMessageId)
+      .sort(
+        (a, b) =>
+          b.upvotesCount - a.upvotesCount ||
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
     const solution = messages.find((message) => message.id === solutionMessageId);
-    if (!solution) return messages;
-    return [solution, ...messages.filter((message) => message.id !== solutionMessageId)];
+    return solution ? [solution, ...others] : others;
   }, [messages, solutionMessageId]);
+
+  // Vote positif sur le message d'un autre étudiant
+  const handleToggleUpvote = async (message: ThreadMessage) => {
+    if (!user || message.authorId === user.uid) return;
+    try {
+      await toggleThreadMessageUpvote(
+        kind,
+        parentId,
+        message.id,
+        user.uid,
+        message.upvotedBy.includes(user.uid)
+      );
+    } catch (error) {
+      console.error("Erreur lors du vote sur le message :", error);
+      setErrorMessage("Impossible d'enregistrer votre vote. Réessayez dans un instant.");
+    }
+  };
 
   // Désignation ou retrait de la solution par l'auteur du ticket
   const handleToggleSolution = async (messageId: string) => {
@@ -225,26 +253,48 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
                 </div>
                 <RichContent className="message-content" content={message.content} />
 
-                {/* Action de l'auteur du ticket : marquer ou retirer la solution */}
-                {canChooseSolution && (
+                <div className="message-actions">
+                  {/* Vote positif : impossible sur son propre message */}
                   <button
                     type="button"
-                    className={`solution-toggle-btn ${isSolution ? "active" : ""}`}
-                    onClick={() => handleToggleSolution(message.id)}
+                    className={`message-upvote-btn ${user && message.upvotedBy.includes(user.uid) ? "upvoted" : ""}`}
+                    onClick={() => handleToggleUpvote(message)}
+                    disabled={isMine}
+                    aria-pressed={Boolean(user && message.upvotedBy.includes(user.uid))}
+                    title={isMine ? `Vous ne pouvez pas voter pour votre propre ${labels.noun}` : labels.upvoteTitle}
                   >
-                    {isSolution ? (
-                      <>
-                        <Undo2 className="onyx-icon onyx-icon--leading" size={13} strokeWidth={2} aria-hidden="true" />
-                        Retirer la solution
-                      </>
-                    ) : (
-                      <>
-                        <CircleCheckBig className="onyx-icon onyx-icon--leading" size={13} strokeWidth={2} aria-hidden="true" />
-                        Marquer comme solution
-                      </>
-                    )}
+                    <ArrowBigUp
+                      className="onyx-icon onyx-icon--leading"
+                      size={15}
+                      strokeWidth={2}
+                      fill={user && message.upvotedBy.includes(user.uid) ? "currentColor" : "none"}
+                      aria-hidden="true"
+                    />
+                    {message.upvotesCount}
+                    <span className="sr-only"> vote{message.upvotesCount > 1 ? "s" : ""}</span>
                   </button>
-                )}
+
+                  {/* Action de l'auteur du ticket : marquer ou retirer la solution */}
+                  {canChooseSolution && (
+                    <button
+                      type="button"
+                      className={`solution-toggle-btn ${isSolution ? "active" : ""}`}
+                      onClick={() => handleToggleSolution(message.id)}
+                    >
+                      {isSolution ? (
+                        <>
+                          <Undo2 className="onyx-icon onyx-icon--leading" size={13} strokeWidth={2} aria-hidden="true" />
+                          Retirer la solution
+                        </>
+                      ) : (
+                        <>
+                          <CircleCheckBig className="onyx-icon onyx-icon--leading" size={13} strokeWidth={2} aria-hidden="true" />
+                          Marquer comme solution
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </li>
             );
           })}
