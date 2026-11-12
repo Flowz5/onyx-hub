@@ -1,0 +1,422 @@
+// =====================================================================
+// FEUILLE DE STYLE DE LA MODALE DE CRÉATION DE TICKET
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.create-ticket-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.create-ticket-modal {
+  background: linear-gradient(145deg, #14213D 0%, #0B1324 100%);
+  border: 1px solid rgba(252, 163, 17, 0.35);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 580px;
+  padding: 2.25rem;
+  color: $color-white;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 40px rgba(252, 163, 17, 0.08);
+
+  @media (max-width: 600px) {
+    padding: 1.5rem;
+    border-radius: 20px;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+
+    .header-title-area {
+      .modal-badge.ticket {
+        display: inline-block;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        color: #FBBF24;
+        background: rgba(251, 191, 36, 0.15);
+        padding: 3px 10px;
+        border-radius: 50px;
+        margin-bottom: 0.5rem;
+      }
+
+      h2 {
+        font-family: var(--font-heading);
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: $color-white;
+        margin-bottom: 0.3rem;
+      }
+
+      p {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+        line-height: 1.4;
+      }
+    }
+
+    .close-modal-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.18);
+        color: $color-white;
+        transform: rotate(90deg);
+      }
+    }
+  }
+
+  .modal-error-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #FCA5A5;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin-bottom: 1.25rem;
+
+    .error-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #F87171;
+    }
+  }
+
+  .modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+
+      .form-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: $color-alabaster-grey;
+        margin-bottom: 0.45rem;
+
+        .required-mark {
+          color: $color-orange;
+        }
+      }
+    }
+
+    .priority-options-row {
+      display: flex;
+      gap: 0.65rem;
+
+      .priority-btn {
+        flex: 1;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: rgba(10, 17, 32, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.7);
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        &.active {
+          &.low {
+            background: rgba(96, 165, 250, 0.15);
+            border-color: #60A5FA;
+            color: #93C5FD;
+          }
+          &.medium {
+            background: rgba(252, 163, 17, 0.18);
+            border-color: $color-orange;
+            color: $color-orange;
+          }
+          &.high {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #EF4444;
+            color: #FCA5A5;
+          }
+        }
+      }
+    }
+
+    .modal-input,
+    .modal-textarea {
+      width: 100%;
+      background: rgba(10, 17, 32, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      color: $color-white;
+      transition: all 0.2s ease;
+
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+      }
+
+      &:focus {
+        outline: none;
+        border-color: rgba(252, 163, 17, 0.7);
+        box-shadow: 0 0 0 3px rgba(252, 163, 17, 0.15);
+      }
+    }
+
+    .modal-textarea {
+      resize: vertical;
+      min-height: 110px;
+      line-height: 1.5;
+    }
+
+    .selected-tags-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+
+      .tag-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: rgba(252, 163, 17, 0.15);
+        border: 1px solid rgba(252, 163, 17, 0.4);
+        color: $color-orange;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 50px;
+
+        .remove-chip-btn {
+          background: transparent;
+          border: none;
+          color: rgba(252, 163, 17, 0.7);
+          font-size: 0.7rem;
+          cursor: pointer;
+
+          &:hover {
+            color: $color-white;
+          }
+        }
+      }
+    }
+
+    .suggestions-list {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.6rem;
+
+      .suggest-label {
+        font-size: 0.74rem;
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .suggest-tag-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50px;
+        padding: 3px 10px;
+        font-size: 0.74rem;
+        color: rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(252, 163, 17, 0.12);
+          color: $color-white;
+        }
+
+        &.selected {
+          background: rgba(252, 163, 17, 0.2);
+          border-color: $color-orange;
+          color: $color-orange;
+        }
+      }
+    }
+
+    .custom-tag-row {
+      display: flex;
+      gap: 0.5rem;
+
+      .custom-tag-input {
+        flex: 1;
+        background: rgba(10, 17, 32, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 0.55rem 0.85rem;
+        font-size: 0.82rem;
+        color: $color-white;
+
+        &:focus {
+          outline: none;
+          border-color: rgba(252, 163, 17, 0.5);
+        }
+      }
+
+      .add-tag-btn {
+        padding: 0.55rem 1rem;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: $color-white;
+        cursor: pointer;
+
+        &:hover {
+          color: $color-orange;
+        }
+      }
+    }
+
+    .modal-actions-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.85rem;
+      margin-top: 0.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+      .cancel-btn {
+        padding: 10px 20px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.75);
+        cursor: pointer;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: $color-white;
+        }
+      }
+
+      .submit-create-btn {
+        padding: 10px 24px;
+        background: linear-gradient(135deg, $color-orange 0%, $color-orange-hover 100%);
+        border: none;
+        border-radius: 50px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: $color-black;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(252, 163, 17, 0.3);
+
+        &:hover {
+          background: linear-gradient(135deg, #FDB53D 0%, $color-orange 100%);
+        }
+
+        // État pendant l'enregistrement Firestore
+        &:disabled {
+          opacity: 0.6;
+          cursor: wait;
+        }
+      }
+    }
+  }
+}
+
+// =====================================================================
+// ADAPTATION À LA HAUTEUR DE L'ÉCRAN
+// La modale ne dépasse jamais la fenêtre : l'en-tête reste fixe,
+// le formulaire défile et les boutons d'action restent visibles en bas.
+// =====================================================================
+
+.create-ticket-overlay {
+  overflow: hidden;
+
+  @media (max-width: 600px) {
+    padding: 0.75rem;
+  }
+}
+
+.create-ticket-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 3rem);
+  max-height: calc(100dvh - 3rem);
+  overflow: hidden;
+
+  @media (max-width: 600px) {
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  // En-tête et bandeau d'erreur conservent leur hauteur
+  > .modal-header,
+  > .modal-error-banner {
+    flex-shrink: 0;
+  }
+
+  // Zone de formulaire défilante
+  > .modal-form {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    // Décalage de la barre de défilement pour ne pas coller au contenu
+    margin-right: -0.85rem;
+    padding-right: 0.85rem;
+
+    // Barre de défilement fine aux couleurs Onyx
+    scrollbar-width: thin;
+    scrollbar-color: rgba(252, 163, 17, 0.45) transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(252, 163, 17, 0.45);
+      border-radius: 50px;
+    }
+
+    // Boutons d'action toujours visibles en bas de la zone défilante
+    .modal-actions-footer {
+      position: sticky;
+      bottom: 0;
+      z-index: 1;
+      margin-top: 0.75rem;
+      padding-bottom: 0.25rem;
+      background: #0B1324;
+    }
+  }
+}

@@ -1,0 +1,204 @@
+// =====================================================================
+// FEUILLE DE STYLE DES FILS DE DISCUSSION (RÉPONSES ET COMMENTAIRES)
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.discussion-thread-component {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(10, 17, 32, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+
+  .thread-status-text {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.45);
+    font-style: italic;
+  }
+
+  // Liste des réponses
+  .thread-messages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    list-style: none;
+
+    .thread-message {
+      padding: 0.75rem 0.9rem;
+      background: rgba(20, 33, 61, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-left: 3px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+
+      // Mise en évidence des messages de l'auteur du ticket ou du post
+      &.from-author {
+        border-left-color: $color-orange;
+      }
+
+      .message-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.35rem;
+        font-size: 0.76rem;
+
+        .message-author {
+          color: $color-white;
+        }
+
+        .author-badge {
+          padding: 1px 8px;
+          background: rgba(252, 163, 17, 0.12);
+          border: 1px solid rgba(252, 163, 17, 0.3);
+          border-radius: 50px;
+          font-size: 0.68rem;
+          font-weight: 700;
+          color: $color-orange;
+        }
+
+        .message-date {
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .delete-message-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: auto;
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          background: transparent;
+          border: none;
+          border-radius: 6px;
+          color: rgba(248, 113, 113, 0.7);
+          cursor: pointer;
+          transition: all 0.2s ease;
+
+          &:hover {
+            background: rgba(239, 68, 68, 0.15);
+            color: #F87171;
+          }
+        }
+      }
+
+      // Réponse retenue comme solution : mise en valeur aux couleurs du statut « Résolu »
+      &.is-solution {
+        background: rgba(168, 85, 247, 0.08);
+        border-color: rgba(168, 85, 247, 0.35);
+        border-left-color: #A855F7;
+      }
+
+      .solution-banner {
+        display: inline-flex;
+        align-items: center;
+        margin-bottom: 0.45rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        color: #C084FC;
+      }
+
+      .solution-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 0.6rem;
+        padding: 4px 12px;
+        background: transparent;
+        border: 1px solid rgba(168, 85, 247, 0.35);
+        border-radius: 50px;
+        font-family: var(--font-body);
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: #C084FC;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(168, 85, 247, 0.15);
+          color: $color-white;
+        }
+
+        // Variante de retrait, plus discrète
+        &.active {
+          border-color: rgba(255, 255, 255, 0.15);
+          color: rgba(255, 255, 255, 0.6);
+
+          &:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: $color-white;
+          }
+        }
+      }
+
+      .message-content {
+        font-size: 0.86rem;
+        line-height: 1.55;
+        color: $color-alabaster-grey;
+        overflow-wrap: anywhere;
+      }
+    }
+  }
+
+  .thread-error {
+    font-size: 0.8rem;
+    color: #F87171;
+  }
+
+  // Formulaire de réponse
+  .thread-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .resolved-hint {
+      font-size: 0.76rem;
+      color: rgba(168, 85, 247, 0.85);
+    }
+
+    .thread-form-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+
+      .thread-hint {
+        font-size: 0.72rem;
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .send-message-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 18px;
+        background: linear-gradient(135deg, $color-orange 0%, #E5920C 100%);
+        border: none;
+        border-radius: 50px;
+        font-family: var(--font-body);
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: $color-black;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(252, 163, 17, 0.25);
+        transition: all 0.2s ease;
+
+        &:hover:not(:disabled) {
+          background: linear-gradient(135deg, #FDB53D 0%, $color-orange 100%);
+          transform: translateY(-1px);
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          box-shadow: none;
+        }
+      }
+    }
+  }
+}
