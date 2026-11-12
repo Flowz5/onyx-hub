@@ -3,6 +3,8 @@ import "./TicketReplies.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { BadgeCheck, CircleAlert, CircleCheckBig, Send, Trash2, Undo2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { RichContent } from "./RichContent";
+import { RichTextEditor } from "./RichTextEditor";
 import { MAX_REPLY_LENGTH, type TicketReply } from "../types/ticket";
 import {
   addTicketReply,
@@ -160,7 +162,7 @@ export const TicketReplies: React.FC<TicketRepliesProps> = ({
                     </button>
                   )}
                 </div>
-                <p className="reply-content">{reply.content}</p>
+                <RichContent className="reply-content" content={reply.content} />
 
                 {/* Action de l'auteur du ticket : marquer ou retirer la solution */}
                 {canChooseSolution && (
@@ -202,14 +204,14 @@ export const TicketReplies: React.FC<TicketRepliesProps> = ({
             Ce ticket est marqué comme résolu, vous pouvez tout de même compléter la réponse.
           </p>
         )}
-        <textarea
-          className="reply-textarea"
+        {/* Éditeur enrichi : texte, liens, images et blocs de code */}
+        <RichTextEditor
           rows={3}
           maxLength={MAX_REPLY_LENGTH}
-          placeholder="Proposez une piste, une explication ou une solution..."
+          placeholder="Proposez une piste, une explication ou une solution (blocs de code bienvenus)..."
           value={draft}
           disabled={isSending}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={setDraft}
           onKeyDown={(e) => {
             // Raccourci Ctrl/Cmd + Entrée pour envoyer la réponse
             if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -217,11 +219,11 @@ export const TicketReplies: React.FC<TicketRepliesProps> = ({
               handleSubmit();
             }
           }}
-          aria-label="Votre réponse au ticket"
+          ariaLabel="Votre réponse au ticket"
         />
         <div className="reply-form-footer">
           <span className="reply-hint">
-            {draft.length}/{MAX_REPLY_LENGTH} · Ctrl + Entrée pour envoyer
+            Ctrl + Entrée pour envoyer
           </span>
           <button type="submit" className="send-reply-btn" disabled={isSending || !draft.trim()}>
             <Send className="onyx-icon onyx-icon--leading" size={14} strokeWidth={2} aria-hidden="true" />
