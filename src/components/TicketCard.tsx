@@ -3,7 +3,7 @@ import type { Ticket, TicketStatus } from "../types/ticket";
 import "./TicketCard.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { ChevronDown, MessageSquareReply, Pencil, Trash2 } from "lucide-react";
-import { TicketReplies } from "./TicketReplies";
+import { DiscussionThread } from "./DiscussionThread";
 import { RichContent } from "./RichContent";
 
 interface TicketCardProps {
@@ -176,11 +176,12 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 
       {/* Fil de réponses déplié */}
       {areRepliesOpen && (
-        <TicketReplies
-          ticketId={ticket.id}
-          ticketAuthorId={ticket.authorId}
+        <DiscussionThread
+          kind="tickets"
+          parentId={ticket.id}
+          parentAuthorId={ticket.authorId}
           isResolved={ticket.status === "resolved"}
-          solutionReplyId={ticket.solutionReplyId}
+          solutionMessageId={ticket.solutionReplyId}
         />
       )}
     </article>

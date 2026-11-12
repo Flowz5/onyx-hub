@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import type { Post } from "../types/post";
 import "./PostCard.scss";
 import { RichContent } from "./RichContent";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { ArrowBigUp, MessageSquare, Pencil, Trash2 } from "lucide-react";
+import { ArrowBigUp, ChevronDown, MessageSquare, Pencil, Trash2 } from "lucide-react";
+import { DiscussionThread } from "./DiscussionThread";
 
 interface PostCardProps {
   post: Post;
@@ -24,6 +25,8 @@ export const PostCard: React.FC<PostCardProps> = ({
 }) => {
   const isAuthor = currentUserId && post.authorId === currentUserId;
   const isUpvoted = Boolean(currentUserId && post.upvotedBy.includes(currentUserId));
+  // Affichage du fil de commentaires (chargé uniquement à l'ouverture)
+  const [areCommentsOpen, setAreCommentsOpen] = useState(false);
 
   // Formatage de la date en français
   const formattedDate = new Date(post.createdAt).toLocaleDateString("fr-FR", {
@@ -103,10 +106,19 @@ export const PostCard: React.FC<PostCardProps> = ({
 
         {/* Pied de carte avec actions */}
         <div className="post-footer">
-          <div className="comments-indicator">
-            <span className="icon"><MessageSquare className="onyx-icon" size={15} strokeWidth={2} aria-hidden="true" /></span>
-            <span>{post.commentsCount} commentaires</span>
-          </div>
+          {/* Bouton d'ouverture du fil de commentaires */}
+          <button
+            type="button"
+            className={`toggle-comments-btn ${areCommentsOpen ? "open" : ""}`}
+            onClick={() => setAreCommentsOpen((isOpen) => !isOpen)}
+            aria-expanded={areCommentsOpen}
+          >
+            <MessageSquare className="onyx-icon onyx-icon--leading" size={15} strokeWidth={2} aria-hidden="true" />
+            {post.commentsCount > 0
+              ? `${post.commentsCount} commentaire${post.commentsCount > 1 ? "s" : ""}`
+              : "Commenter"}
+            <ChevronDown className="onyx-icon chevron" size={14} strokeWidth={2} aria-hidden="true" />
+          </button>
 
           {/* Actions réservées à l'auteur : modification et suppression */}
           {isAuthor && (onEdit || onDelete) && (
@@ -139,6 +151,11 @@ export const PostCard: React.FC<PostCardProps> = ({
             </div>
           )}
         </div>
+
+        {/* Fil de commentaires déplié */}
+        {areCommentsOpen && (
+          <DiscussionThread kind="posts" parentId={post.id} parentAuthorId={post.authorId} />
+        )}
       </div>
     </article>
   );

@@ -242,6 +242,18 @@ service cloud.firestore {
           && data.repliesCount == 0;
     }
 
+    // Validates a new thread message (ticket reply or post comment):
+    // author is the caller, strict schema, bounded Markdown content, server timestamp.
+    function isValidNewThreadMessage() {
+      let data = request.resource.data;
+      return isOwner(data.authorId)
+          && data.keys().hasAll(['content', 'authorId', 'authorName', 'createdAt'])
+          && data.keys().hasOnly(['content', 'authorId', 'authorName', 'createdAt'])
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
+          && data.createdAt == request.time;
+    }
+
     // -------------------------------------------------------------------------
     // Collection: posts (Discussions et partages style Reddit)
     // -------------------------------------------------------------------------
@@ -254,13 +266,32 @@ service cloud.firestore {
                     && isOwner(request.resource.data.authorId)
                     && isValidNewPost(request.resource.data);
 
-      // Update: upvote toggle of the calling user, or content edit by the author.
+      // Update: upvote toggle of the calling user, content edit by the author,
+      // or commentsCount shifted by one (batched with a comment write).
       allow update: if isAuthenticated()
                     && canAccessChannel(resource.data.channelId)
-                    && (isValidUpvoteToggle() || isValidPostEdit());
+                    && (isValidUpvoteToggle() || isValidPostEdit() || isCounterStep('commentsCount'));
 
       allow delete: if isAuthenticated()
                     && isOwner(resource.data.authorId);
+
+      // -----------------------------------------------------------------------
+      // Subcollection: comments (Commentaires des membres du canal sur un post)
+      // -----------------------------------------------------------------------
+      match /comments/{commentId} {
+        // Access follows the parent post's channel
+        function canAccessPost() {
+          return exists(/databases/$(database)/documents/posts/$(postId))
+              && canAccessChannel(get(/databases/$(database)/documents/posts/$(postId)).data.channelId);
+        }
+
+        allow read: if isAuthenticated() && canAccessPost();
+        allow create: if isAuthenticated() && canAccessPost() && isValidNewThreadMessage();
+
+        // Comments are immutable; only their author may delete them.
+        allow update: if false;
+        allow delete: if isAuthenticated() && isOwner(resource.data.authorId);
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -300,20 +331,7 @@ service cloud.firestore {
         }
 
         allow read: if isAuthenticated() && canAccessTicket();
-
-        // Create: author must be the caller, strict schema, server timestamp.
-        allow create: if isAuthenticated()
-                      && canAccessTicket()
-                      && isOwner(request.resource.data.authorId)
-                      && request.resource.data.keys().hasAll(['content', 'authorId', 'authorName', 'createdAt'])
-                      && request.resource.data.keys().hasOnly(['content', 'authorId', 'authorName', 'createdAt'])
-                      && request.resource.data.content is string
-                      && request.resource.data.content.size() > 0
-                      && request.resource.data.content.size() <= 5000
-                      && request.resource.data.authorName is string
-                      && request.resource.data.authorName.size() > 0
-                      && request.resource.data.authorName.size() <= 100
-                      && request.resource.data.createdAt == request.time;
+        allow create: if isAuthenticated() && canAccessTicket() && isValidNewThreadMessage();
 
         // Replies are immutable; only their author may delete them.
         allow update: if false;
