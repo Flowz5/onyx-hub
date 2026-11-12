@@ -340,6 +340,89 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // Domain Validator Functions: Notifications
+    // -------------------------------------------------------------------------
+
+    // Common schema of a thread notification (reply to a ticket or comment on a post)
+    function isValidNotificationShape(data) {
+      return data.keys().hasAll([
+               'recipientId', 'actorId', 'actorName', 'type', 'parentId', 'messageId',
+               'parentTitle', 'channelId', 'createdAt', 'read'
+             ])
+          && data.keys().hasOnly([
+               'recipientId', 'actorId', 'actorName', 'type', 'parentId', 'messageId',
+               'parentTitle', 'channelId', 'createdAt', 'read'
+             ])
+          && isOwner(data.actorId)
+          && data.recipientId is string && data.recipientId != request.auth.uid
+          && data.actorName is string && data.actorName.size() > 0 && data.actorName.size() <= 100
+          && data.parentId is string && data.parentId.size() > 0
+          && data.messageId is string && data.messageId.size() > 0
+          && data.createdAt == request.time
+          && data.read == false;
+    }
+
+    // The recipient, title and channel must match the parent document,
+    // and the triggering message must be written in the same batch (existsAfter).
+    function matchesThreadParent(data, parentCollection, subcollection) {
+      let parent = get(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)).data;
+      return data.recipientId == parent.authorId
+          && data.parentTitle == parent.title
+          && data.channelId == parent.channelId
+          && existsAfter(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)/$(subcollection)/$(data.messageId));
+    }
+
+    function isValidNewNotification(data) {
+      return isValidNotificationShape(data)
+          && ((data.type == 'ticket_reply' && matchesThreadParent(data, 'tickets', 'replies'))
+              || (data.type == 'post_comment' && matchesThreadParent(data, 'posts', 'comments')));
+    }
+
+    // Validates the notification preferences and read state of a user
+    function isValidNotificationSettings(data) {
+      return data.keys().hasAll(['preferences', 'postsReadAt', 'readPostIds'])
+          && data.keys().hasOnly(['preferences', 'postsReadAt', 'readPostIds', 'clearedAt'])
+          && data.preferences is map
+          && data.preferences.keys().hasAll(['newPosts', 'ticketReplies', 'postComments'])
+          && data.preferences.keys().hasOnly(['newPosts', 'ticketReplies', 'postComments'])
+          && data.preferences.newPosts is bool
+          && data.preferences.ticketReplies is bool
+          && data.preferences.postComments is bool
+          && data.postsReadAt is timestamp
+          && data.postsReadAt <= request.time
+          && data.readPostIds is list && data.readPostIds.size() <= 50
+          && (!('clearedAt' in data) || (data.clearedAt is timestamp && data.clearedAt <= request.time));
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: notifications (Réponses à mes tickets et commentaires de mes posts)
+    // -------------------------------------------------------------------------
+    match /notifications/{notificationId} {
+      // Read: only the recipient (queries filter on recipientId)
+      allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+
+      // Create: written by the message author in the same batch as the message itself
+      allow create: if isAuthenticated() && isValidNewNotification(request.resource.data);
+
+      // Update: the recipient may only mark it as read
+      allow update: if isAuthenticated()
+                    && resource.data.recipientId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+                    && request.resource.data.read == true;
+
+      allow delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection: notificationSettings (Préférences et lecture des nouveaux posts, un document par utilisateur)
+    // -------------------------------------------------------------------------
+    match /notificationSettings/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidNotificationSettings(request.resource.data);
+      allow delete: if isOwner(userId);
+    }
+
+    // -------------------------------------------------------------------------
     // Collection: images (Images compressées insérées dans les contenus)
     // -------------------------------------------------------------------------
     match /images/{imageId} {

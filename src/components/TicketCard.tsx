@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Ticket, TicketStatus } from "../types/ticket";
 import "./TicketCard.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
@@ -13,6 +13,8 @@ interface TicketCardProps {
   onDelete?: (ticketId: string) => void;
   // Ouverture de la modale d'édition (auteur uniquement)
   onEdit?: (ticket: Ticket) => void;
+  // Mise en avant depuis une notification : la carte défile à l'écran, avec son fil ouvert si besoin
+  focus?: "card" | "thread" | null;
 }
 
 // Libellés conviviaux pour les statuts
@@ -36,10 +38,19 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   onUpdateStatus,
   onDelete,
   onEdit,
+  focus = null,
 }) => {
   const isAuthor = currentUserId && ticket.authorId === currentUserId;
   // Affichage du fil de réponses (chargé uniquement à l'ouverture)
   const [areRepliesOpen, setAreRepliesOpen] = useState(false);
+  const cardRef = useRef<HTMLElement>(null);
+
+  // Arrivée depuis une notification : ouverture du fil puis défilement jusqu'à la carte
+  useEffect(() => {
+    if (!focus) return;
+    if (focus === "thread") setAreRepliesOpen(true);
+    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focus]);
 
   const formattedDate = new Date(ticket.createdAt).toLocaleDateString("fr-FR", {
     day: "numeric",
@@ -61,7 +72,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   };
 
   return (
-    <article className={`ticket-card-item status-${ticket.status}`}>
+    <article
+      ref={cardRef}
+      className={`ticket-card-item status-${ticket.status} ${focus ? "is-focused" : ""}`}
+    >
       {/* En-tête du ticket avec statut et priorité */}
       <div className="ticket-card-header">
         <div className="status-priority-badges">
@@ -180,6 +194,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           kind="tickets"
           parentId={ticket.id}
           parentAuthorId={ticket.authorId}
+          parentTitle={ticket.title}
+          channelId={ticket.channelId}
           isResolved={ticket.status === "resolved"}
           solutionMessageId={ticket.solutionReplyId}
         />
