@@ -5,6 +5,7 @@
 import {
   collection,
   doc,
+  getDoc,
   updateDoc,
   writeBatch,
   increment,
@@ -16,10 +17,12 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { addProfileCounterStep } from "./profileService";
 import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
 
 const TICKETS_COLLECTION = "tickets";
 const CHANNELS_COLLECTION = "channels";
+const USERS_COLLECTION = "users";
 
 // Création d'un ticket d'aide rattaché à un canal.
 // L'écriture est atomique : le ticket est créé et le compteur du canal incrémenté dans le même lot.
@@ -49,6 +52,8 @@ export const createTicketInFirestore = async (
   batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
     ticketsCount: increment(1),
   });
+  // Compteur de tickets du profil de l'auteur
+  await addProfileCounterStep(batch, user.uid, "ticketsCount", 1);
   await batch.commit();
 
   return ticketDocRef.id;
@@ -80,26 +85,54 @@ export const updateTicketInFirestore = async (
 
 // Marquage (ou retrait) d'une réponse comme solution par l'auteur du ticket.
 // Le marquage d'une solution fait passer le ticket au statut « Résolu ».
+// Dans le même lot, l'auteur de la nouvelle solution est crédité et l'auteur de l'ancienne décrédité ;
+// lastSolutionTicketId permet aux règles Firestore de vérifier ce changement sur le ticket.
 export const setTicketSolution = async (
   ticketId: string,
-  replyId: string | null
+  reply: { id: string; authorId: string } | null,
+  previousSolutionAuthorId: string | null
 ): Promise<void> => {
-  await updateDoc(doc(db, TICKETS_COLLECTION, ticketId), {
-    solutionReplyId: replyId,
-    ...(replyId ? { status: "resolved" } : {}),
+  const nextSolutionAuthorId = reply?.authorId ?? null;
+  const batch = writeBatch(db);
+  batch.update(doc(db, TICKETS_COLLECTION, ticketId), {
+    solutionReplyId: reply?.id ?? null,
+    solutionAuthorId: nextSolutionAuthorId,
+    ...(reply ? { status: "resolved" } : {}),
   });
+
+  if (previousSolutionAuthorId !== nextSolutionAuthorId) {
+    const adjustments: [string | null, number][] = [
+      [previousSolutionAuthorId, -1],
+      [nextSolutionAuthorId, 1],
+    ];
+    for (const [uid, step] of adjustments) {
+      if (!uid) continue;
+      // Un étudiant sans profil (jamais reconnecté depuis la création des profils) n'est pas crédité
+      const profile = await getDoc(doc(db, USERS_COLLECTION, uid));
+      if (!profile.exists()) continue;
+      if (step < 0 && (profile.data().solutionsCount || 0) <= 0) continue;
+      batch.update(doc(db, USERS_COLLECTION, uid), {
+        solutionsCount: increment(step),
+        lastSolutionTicketId: ticketId,
+      });
+    }
+  }
+
+  await batch.commit();
 };
 
-// Suppression d'un ticket et décrémentation atomique du compteur du canal
+// Suppression d'un ticket par son auteur et décrémentation atomique des compteurs du canal et du profil
 export const deleteTicketFromFirestore = async (
   ticketId: string,
-  channelId: string
+  channelId: string,
+  authorId: string
 ): Promise<void> => {
   const batch = writeBatch(db);
   batch.delete(doc(db, TICKETS_COLLECTION, ticketId));
   batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
     ticketsCount: increment(-1),
   });
+  await addProfileCounterStep(batch, authorId, "ticketsCount", -1);
   await batch.commit();
 };
 
@@ -139,6 +172,7 @@ export const subscribeToChannelTickets = (
             : new Date().toISOString(),
           repliesCount: data.repliesCount || 0,
           solutionReplyId: data.solutionReplyId ?? null,
+          solutionAuthorId: data.solutionAuthorId ?? null,
         };
       });
       onTicketsUpdate(tickets);
@@ -167,6 +201,7 @@ export const subscribeToChannelTickets = (
                 : new Date().toISOString(),
               repliesCount: data.repliesCount || 0,
           solutionReplyId: data.solutionReplyId ?? null,
+          solutionAuthorId: data.solutionAuthorId ?? null,
             };
           });
           // Tri côté client

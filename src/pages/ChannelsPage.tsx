@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { OnyxLogo } from "../components/OnyxLogo";
 import { ChannelSearchBar } from "../components/ChannelSearchBar";
 import { ChannelRow } from "../components/ChannelRow";
 import { CreateChannelModal } from "../components/CreateChannelModal";
-import { NotificationCenter } from "../components/NotificationCenter";
+import { AppTopbar } from "../components/AppTopbar";
 import type { Channel, NewChannelFormData } from "../types/channel";
 import {
   createChannelInFirestore,
@@ -29,7 +28,7 @@ const DEFAULT_TAGS: string[] = [
 
 // Page principale affichant l'espace de gestion et de consultation des canaux
 export const ChannelsPage: React.FC = () => {
-  const { user, signOutUser } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // État local pour la requête de recherche textuelle globale
@@ -195,32 +194,8 @@ export const ChannelsPage: React.FC = () => {
 
   return (
     <div className="channels-page-container">
-      {/* Barre de navigation supérieure */}
-      <header className="channels-topbar">
-        <div className="topbar-brand">
-          <OnyxLogo size={42} showHexHalo={false} />
-          <div className="topbar-title">
-            <span className="brand-name">ONYX <strong>HUB</strong></span>
-            <span className="brand-badge">CLASSE ACTIVE</span>
-          </div>
-        </div>
-
-        <div className="topbar-user-area">
-          <div className="user-details">
-            <span className="user-name">{user?.displayName || "Étudiant"}</span>
-            <span className="user-email">{user?.email}</span>
-          </div>
-          <NotificationCenter />
-          <button
-            type="button"
-            className="signout-header-btn"
-            onClick={signOutUser}
-            title="Se déconnecter"
-          >
-            Déconnexion
-          </button>
-        </div>
-      </header>
+      {/* Barre de navigation supérieure commune */}
+      <AppTopbar />
 
       {/* Contenu principal de l'espace channels */}
       <main className="channels-main-content">

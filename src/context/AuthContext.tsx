@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth } from "../services/firebase";
+import { ensureUserProfile } from "../services/profileService";
 
 interface AuthContextType {
   user: User | null;
+  // Vrai tant que la session ou le profil Firestore de l'utilisateur sont en cours de vérification
   loading: boolean;
   signOutUser: () => Promise<void>;
 }
@@ -20,9 +22,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Écoute des changements de session utilisateur Firebase
+  // Écoute des changements de session utilisateur Firebase.
+  // Le profil public (users/{uid}) est créé avant l'accès aux pages, car les compteurs
+  // de posts et de tickets y sont mis à jour à chaque publication.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setLoading(true);
+      if (currentUser) {
+        try {
+          await ensureUserProfile(currentUser);
+        } catch (error) {
+          console.error("Erreur lors de la création du profil utilisateur :", error);
+        }
+      }
       setUser(currentUser);
       setLoading(false);
     });

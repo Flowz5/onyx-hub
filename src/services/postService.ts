@@ -19,12 +19,13 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Post, NewPostFormData } from "../types/post";
+import { addProfileCounterStep } from "./profileService";
 
 const POSTS_COLLECTION = "posts";
 const CHANNELS_COLLECTION = "channels";
 
 // Création d'un post rattaché à un canal spécifique.
-// L'écriture est atomique : le post est créé et le compteur du canal incrémenté dans le même lot.
+// L'écriture est atomique : le post est créé, les compteurs du canal et du profil de l'auteur incrémentés.
 export const createPostInFirestore = async (
   channelId: string,
   formData: NewPostFormData,
@@ -50,6 +51,7 @@ export const createPostInFirestore = async (
   batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
     postsCount: increment(1),
   });
+  await addProfileCounterStep(batch, user.uid, "postsCount", 1);
   await batch.commit();
 
   return postDocRef.id;
@@ -67,16 +69,18 @@ export const updatePostInFirestore = async (
   });
 };
 
-// Suppression d'un post et décrémentation atomique du compteur du canal
+// Suppression d'un post par son auteur et décrémentation atomique des compteurs du canal et du profil
 export const deletePostFromFirestore = async (
   postId: string,
-  channelId: string
+  channelId: string,
+  authorId: string
 ): Promise<void> => {
   const batch = writeBatch(db);
   batch.delete(doc(db, POSTS_COLLECTION, postId));
   batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
     postsCount: increment(-1),
   });
+  await addProfileCounterStep(batch, authorId, "postsCount", -1);
   await batch.commit();
 };
 
