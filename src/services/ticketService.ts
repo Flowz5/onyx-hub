@@ -5,6 +5,7 @@
 import {
   collection,
   doc,
+  getDoc,
   updateDoc,
   writeBatch,
   increment,
@@ -16,17 +17,24 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { addProfileCounterStep } from "./profileService";
+import { addMentionNotifications } from "./notificationService";
+import { cleanupAfterDeletion, deleteParentWithThread, deleteRemovedImages } from "./cleanupService";
+import type { MentionTarget } from "../types/mention";
 import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
 
 const TICKETS_COLLECTION = "tickets";
 const CHANNELS_COLLECTION = "channels";
+const USERS_COLLECTION = "users";
 
 // Création d'un ticket d'aide rattaché à un canal.
 // L'écriture est atomique : le ticket est créé et le compteur du canal incrémenté dans le même lot.
 export const createTicketInFirestore = async (
   channelId: string,
   formData: NewTicketFormData,
-  user: { uid: string; displayName?: string | null; email?: string | null }
+  user: { uid: string; displayName?: string | null; email?: string | null },
+  // Étudiants mentionnés dans la description, notifiés dans le même lot
+  mentions: MentionTarget[] = []
 ): Promise<string> => {
   const ticketData = {
     channelId,
@@ -49,6 +57,17 @@ export const createTicketInFirestore = async (
   batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
     ticketsCount: increment(1),
   });
+  // Compteur de tickets du profil de l'auteur
+  await addProfileCounterStep(batch, user.uid, "ticketsCount", 1);
+  addMentionNotifications(
+    batch,
+    "tickets",
+    ticketDocRef.id,
+    null,
+    { title: formData.title, channelId },
+    { uid: user.uid, name: ticketData.authorName },
+    mentions
+  );
   await batch.commit();
 
   return ticketDocRef.id;
@@ -65,10 +84,12 @@ export const updateTicketStatusInFirestore = async (
   });
 };
 
-// Modification d'un ticket par son auteur (sujet, description, priorité et tags)
+// Modification d'un ticket par son auteur (sujet, description, priorité et tags).
+// Les images retirées de la description sont ensuite supprimées.
 export const updateTicketInFirestore = async (
   ticketId: string,
-  formData: NewTicketFormData
+  formData: NewTicketFormData,
+  previousDescription: string
 ): Promise<void> => {
   await updateDoc(doc(db, TICKETS_COLLECTION, ticketId), {
     title: formData.title,
@@ -76,31 +97,64 @@ export const updateTicketInFirestore = async (
     priority: formData.priority,
     tags: formData.tags,
   });
+  await deleteRemovedImages(previousDescription, formData.description).catch((error) =>
+    console.warn("Nettoyage des images retirées du ticket :", error)
+  );
 };
 
 // Marquage (ou retrait) d'une réponse comme solution par l'auteur du ticket.
 // Le marquage d'une solution fait passer le ticket au statut « Résolu ».
+// Dans le même lot, l'auteur de la nouvelle solution est crédité et l'auteur de l'ancienne décrédité ;
+// lastSolutionTicketId permet aux règles Firestore de vérifier ce changement sur le ticket.
 export const setTicketSolution = async (
   ticketId: string,
-  replyId: string | null
+  reply: { id: string; authorId: string } | null,
+  previousSolutionAuthorId: string | null
 ): Promise<void> => {
-  await updateDoc(doc(db, TICKETS_COLLECTION, ticketId), {
-    solutionReplyId: replyId,
-    ...(replyId ? { status: "resolved" } : {}),
+  const nextSolutionAuthorId = reply?.authorId ?? null;
+  const batch = writeBatch(db);
+  batch.update(doc(db, TICKETS_COLLECTION, ticketId), {
+    solutionReplyId: reply?.id ?? null,
+    solutionAuthorId: nextSolutionAuthorId,
+    ...(reply ? { status: "resolved" } : {}),
   });
+
+  if (previousSolutionAuthorId !== nextSolutionAuthorId) {
+    const adjustments: [string | null, number][] = [
+      [previousSolutionAuthorId, -1],
+      [nextSolutionAuthorId, 1],
+    ];
+    for (const [uid, step] of adjustments) {
+      if (!uid) continue;
+      // Un étudiant sans profil (jamais reconnecté depuis la création des profils) n'est pas crédité
+      const profile = await getDoc(doc(db, USERS_COLLECTION, uid));
+      if (!profile.exists()) continue;
+      if (step < 0 && (profile.data().solutionsCount || 0) <= 0) continue;
+      batch.update(doc(db, USERS_COLLECTION, uid), {
+        solutionsCount: increment(step),
+        lastSolutionTicketId: ticketId,
+      });
+    }
+  }
+
+  await batch.commit();
 };
 
-// Suppression d'un ticket et décrémentation atomique du compteur du canal
-export const deleteTicketFromFirestore = async (
-  ticketId: string,
-  channelId: string
-): Promise<void> => {
-  const batch = writeBatch(db);
-  batch.delete(doc(db, TICKETS_COLLECTION, ticketId));
-  batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
-    ticketsCount: increment(-1),
+// Suppression d'un ticket par son auteur avec ses réponses,
+// décrémentation des compteurs du canal et du profil, puis nettoyage
+// de ses images (et de celles de ses propres réponses) et des notifications qu'il a générées
+export const deleteTicketFromFirestore = async (ticket: Ticket, authorId: string): Promise<void> => {
+  const deletedReplies = await deleteParentWithThread("tickets", "replies", ticket.id, async (batch) => {
+    batch.update(doc(db, CHANNELS_COLLECTION, ticket.channelId), {
+      ticketsCount: increment(-1),
+    });
+    await addProfileCounterStep(batch, authorId, "ticketsCount", -1);
   });
-  await batch.commit();
+
+  const ownContents = deletedReplies
+    .filter((reply) => reply.authorId === authorId)
+    .map((reply) => reply.content);
+  await cleanupAfterDeletion(authorId, ticket.id, [ticket.description, ...ownContents]);
 };
 
 // Écoute en temps réel des tickets d'un canal
@@ -139,6 +193,7 @@ export const subscribeToChannelTickets = (
             : new Date().toISOString(),
           repliesCount: data.repliesCount || 0,
           solutionReplyId: data.solutionReplyId ?? null,
+          solutionAuthorId: data.solutionAuthorId ?? null,
         };
       });
       onTicketsUpdate(tickets);
@@ -167,6 +222,7 @@ export const subscribeToChannelTickets = (
                 : new Date().toISOString(),
               repliesCount: data.repliesCount || 0,
           solutionReplyId: data.solutionReplyId ?? null,
+          solutionAuthorId: data.solutionAuthorId ?? null,
             };
           });
           // Tri côté client

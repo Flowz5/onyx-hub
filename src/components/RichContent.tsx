@@ -5,7 +5,9 @@ import rehypeHighlight from "rehype-highlight";
 import "./RichContent.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { Check, Copy, ImageOff } from "lucide-react";
+import { Link } from "react-router-dom";
 import { ONYX_IMAGE_PREFIX, getImageDataUrl } from "../services/imageService";
+import { PROFILE_LINK_PREFIX } from "../types/mention";
 
 interface RichContentProps {
   // Contenu au format Markdown (texte, liens, images, blocs de code)
@@ -107,12 +109,18 @@ const urlTransform = (url: string): string =>
 
 // Personnalisation du rendu des éléments Markdown
 const markdownComponents: Components = {
-  // Liens ouverts dans un nouvel onglet, sans transmission du contexte de la page
-  a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer nofollow">
-      {children}
-    </a>
-  ),
+  // Mentions : pastille menant au profil, dans l'application ;
+  // autres liens ouverts dans un nouvel onglet, sans transmission du contexte de la page
+  a: ({ href, children }) =>
+    href?.startsWith(PROFILE_LINK_PREFIX) ? (
+      <Link to={href} className="rich-mention" onClick={(e) => e.stopPropagation()}>
+        {children}
+      </Link>
+    ) : (
+      <a href={href} target="_blank" rel="noopener noreferrer nofollow">
+        {children}
+      </a>
+    ),
   // Images chargées à la demande, cliquables pour un affichage en taille réelle
   img: ({ src, alt }) =>
     typeof src === "string" && src.startsWith(ONYX_IMAGE_PREFIX) ? (
@@ -125,6 +133,10 @@ const markdownComponents: Components = {
   pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 };
 
+// Le « @ » d'une mention est intégré au lien pour être affiché dans la pastille : @[Nom](...) → [@Nom](...)
+const withMentionLinks = (content: string): string =>
+  content.replace(/@\[([^\]]*)\]\((\/profile\/[A-Za-z0-9]+)\)/g, "[@$1]($2)");
+
 // Affichage sécurisé d'un contenu Markdown : le HTML brut n'est jamais interprété
 export const RichContent: React.FC<RichContentProps> = ({ content, className = "" }) => {
   return (
@@ -135,7 +147,7 @@ export const RichContent: React.FC<RichContentProps> = ({ content, className = "
         components={markdownComponents}
         urlTransform={urlTransform}
       >
-        {content}
+        {withMentionLinks(content)}
       </ReactMarkdown>
     </div>
   );

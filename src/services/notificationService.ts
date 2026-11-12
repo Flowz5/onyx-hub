@@ -12,6 +12,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  deleteDoc,
   setDoc,
   updateDoc,
   writeBatch,
@@ -25,6 +26,7 @@ import {
   Timestamp,
   type DocumentData,
   type Unsubscribe,
+  type WriteBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import {
@@ -34,6 +36,7 @@ import {
   type NotificationSettings,
   type ThreadNotificationType,
 } from "../types/notification";
+import type { MentionTarget } from "../types/mention";
 
 const NOTIFICATIONS_COLLECTION = "notifications";
 const SETTINGS_COLLECTION = "notificationSettings";
@@ -61,6 +64,8 @@ export interface ThreadNotification {
   channelId: string;
   createdAt: string;
   read: boolean;
+  // Message (réponse ou commentaire) concerné ; null pour une mention dans le corps d'un post ou d'un ticket
+  messageId: string | null;
 }
 
 // Parent d'un message (ticket ou post) nécessaire à l'écriture d'une notification
@@ -91,12 +96,45 @@ export const buildThreadNotificationData = (
   read: false,
 });
 
+// Ajout au lot d'écriture des notifications de mention d'un contenu.
+// Le contenu (post, ticket, réponse ou commentaire) doit être créé dans le même lot :
+// les règles Firestore vérifient qu'il contient bien la mention de chaque destinataire.
+export const addMentionNotifications = (
+  batch: WriteBatch,
+  kind: "posts" | "tickets",
+  parentId: string,
+  messageId: string | null,
+  parent: Omit<NotificationParent, "authorId">,
+  actor: { uid: string; name: string },
+  targets: MentionTarget[]
+): void => {
+  targets.forEach((target) => {
+    batch.set(newNotificationRef(), {
+      recipientId: target.uid,
+      actorId: actor.uid,
+      actorName: actor.name,
+      type: kind === "posts" ? "post_mention" : "ticket_mention",
+      parentId,
+      messageId,
+      parentTitle: parent.title,
+      channelId: parent.channelId,
+      createdAt: serverTimestamp(),
+      read: false,
+      // E-mail d'invitation, utilisé par les règles pour vérifier l'accès à un canal privé
+      ...(target.email ? { recipientEmail: target.email } : {}),
+    });
+  });
+};
+
 // Référence d'un nouveau document de notification (pour un lot d'écriture)
 export const newNotificationRef = () => doc(collection(db, NOTIFICATIONS_COLLECTION));
 
 const mapThreadNotification = (id: string, data: DocumentData): ThreadNotification => ({
   id,
-  type: data.type === "post_comment" ? "post_comment" : "ticket_reply",
+  type: ["post_comment", "post_mention", "ticket_mention"].includes(data.type)
+    ? data.type
+    : "ticket_reply",
+  messageId: data.messageId ?? null,
   actorName: data.actorName || "Étudiant",
   parentId: data.parentId || "",
   parentTitle: data.parentTitle || "",
@@ -148,6 +186,11 @@ export const subscribeToThreadNotifications = (
     mainUnsubscribe();
     if (fallbackUnsubscribe) fallbackUnsubscribe();
   };
+};
+
+// Suppression d'une notification reçue (ex : contenu ciblé supprimé entre-temps)
+export const deleteReceivedNotification = async (notificationId: string): Promise<void> => {
+  await deleteDoc(doc(db, NOTIFICATIONS_COLLECTION, notificationId));
 };
 
 // Marquage d'une ou plusieurs notifications de fil comme lues

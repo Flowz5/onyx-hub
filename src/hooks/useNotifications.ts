@@ -22,6 +22,7 @@ import {
 import type { Channel } from "../types/channel";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
+  type NotificationCategory,
   type NotificationItem,
   type NotificationPreferences,
   type NotificationSettings,
@@ -94,9 +95,14 @@ export const useNotifications = (user: User | null) => {
     const items: NotificationItem[] = [];
 
     threadNotifications.forEach((notification) => {
-      const isReply = notification.type === "ticket_reply";
-      const category = isReply ? "ticketReplies" : "postComments";
+      const category: NotificationCategory =
+        notification.type === "ticket_reply"
+          ? "ticketReplies"
+          : notification.type === "post_comment"
+            ? "postComments"
+            : "mentions";
       if (!preferences[category]) return;
+      const isTicket = notification.type === "ticket_reply" || notification.type === "ticket_mention";
       items.push({
         key: `thread-${notification.id}`,
         source: "thread",
@@ -107,7 +113,9 @@ export const useNotifications = (user: User | null) => {
         channelId: notification.channelId,
         channelName: channelNames.get(notification.channelId),
         targetId: notification.parentId,
-        targetTab: isReply ? "tickets" : "posts",
+        targetTab: isTicket ? "tickets" : "posts",
+        // Fil ouvert pour une réponse, un commentaire ou une mention dans l'un d'eux
+        openThread: notification.messageId !== null,
         createdAt: notification.createdAt,
         isRead: notification.read,
       });
@@ -135,6 +143,7 @@ export const useNotifications = (user: User | null) => {
             channelName: channelNames.get(post.channelId),
             targetId: post.id,
             targetTab: "posts",
+            openThread: false,
             createdAt: post.createdAt,
             isRead: createdAt <= readAt || settings.readPostIds.includes(post.id),
           });

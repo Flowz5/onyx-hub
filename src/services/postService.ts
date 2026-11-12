@@ -19,16 +19,22 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Post, NewPostFormData } from "../types/post";
+import { addProfileCounterStep } from "./profileService";
+import { addMentionNotifications } from "./notificationService";
+import { cleanupAfterDeletion, deleteParentWithThread, deleteRemovedImages } from "./cleanupService";
+import type { MentionTarget } from "../types/mention";
 
 const POSTS_COLLECTION = "posts";
 const CHANNELS_COLLECTION = "channels";
 
 // Création d'un post rattaché à un canal spécifique.
-// L'écriture est atomique : le post est créé et le compteur du canal incrémenté dans le même lot.
+// L'écriture est atomique : le post est créé, les compteurs du canal et du profil de l'auteur incrémentés.
 export const createPostInFirestore = async (
   channelId: string,
   formData: NewPostFormData,
-  user: { uid: string; displayName?: string | null; email?: string | null }
+  user: { uid: string; displayName?: string | null; email?: string | null },
+  // Étudiants mentionnés dans le contenu, notifiés dans le même lot
+  mentions: MentionTarget[] = []
 ): Promise<string> => {
   const postData = {
     channelId,
@@ -50,34 +56,53 @@ export const createPostInFirestore = async (
   batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
     postsCount: increment(1),
   });
+  await addProfileCounterStep(batch, user.uid, "postsCount", 1);
+  addMentionNotifications(
+    batch,
+    "posts",
+    postDocRef.id,
+    null,
+    { title: formData.title, channelId },
+    { uid: user.uid, name: postData.authorName },
+    mentions
+  );
   await batch.commit();
 
   return postDocRef.id;
 };
 
-// Modification d'un post par son auteur (titre, contenu et tags uniquement)
+// Modification d'un post par son auteur (titre, contenu et tags uniquement).
+// Les images retirées du contenu sont ensuite supprimées.
 export const updatePostInFirestore = async (
   postId: string,
-  formData: NewPostFormData
+  formData: NewPostFormData,
+  previousContent: string
 ): Promise<void> => {
   await updateDoc(doc(db, POSTS_COLLECTION, postId), {
     title: formData.title,
     content: formData.content,
     tags: formData.tags,
   });
+  await deleteRemovedImages(previousContent, formData.content).catch((error) =>
+    console.warn("Nettoyage des images retirées du post :", error)
+  );
 };
 
-// Suppression d'un post et décrémentation atomique du compteur du canal
-export const deletePostFromFirestore = async (
-  postId: string,
-  channelId: string
-): Promise<void> => {
-  const batch = writeBatch(db);
-  batch.delete(doc(db, POSTS_COLLECTION, postId));
-  batch.update(doc(db, CHANNELS_COLLECTION, channelId), {
-    postsCount: increment(-1),
+// Suppression d'un post par son auteur avec ses commentaires,
+// décrémentation des compteurs du canal et du profil, puis nettoyage
+// de ses images (et de celles de ses propres commentaires) et des notifications qu'il a générées
+export const deletePostFromFirestore = async (post: Post, authorId: string): Promise<void> => {
+  const deletedComments = await deleteParentWithThread("posts", "comments", post.id, async (batch) => {
+    batch.update(doc(db, CHANNELS_COLLECTION, post.channelId), {
+      postsCount: increment(-1),
+    });
+    await addProfileCounterStep(batch, authorId, "postsCount", -1);
   });
-  await batch.commit();
+
+  const ownContents = deletedComments
+    .filter((comment) => comment.authorId === authorId)
+    .map((comment) => comment.content);
+  await cleanupAfterDeletion(authorId, post.id, [post.content, ...ownContents]);
 };
 
 // Bascule du vote positif (upvote) d'un étudiant sur un post

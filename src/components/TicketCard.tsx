@@ -4,6 +4,7 @@ import "./TicketCard.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { ChevronDown, MessageSquareReply, Pencil, Trash2 } from "lucide-react";
 import { DiscussionThread } from "./DiscussionThread";
+import { AuthorLink } from "./UserAvatar";
 import { RichContent } from "./RichContent";
 
 interface TicketCardProps {
@@ -93,7 +94,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 
         {/* Métadonnées auteur et date */}
         <div className="ticket-author-info">
-          <span>Par <strong>{ticket.authorName}</strong></span>
+          <span>
+            Par <AuthorLink uid={ticket.authorId} fallbackName={ticket.authorName} avatarSize={22} />
+          </span>
           <span className="meta-separator">•</span>
           <span>{formattedDate}</span>
         </div>
@@ -198,6 +201,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           channelId={ticket.channelId}
           isResolved={ticket.status === "resolved"}
           solutionMessageId={ticket.solutionReplyId}
+          solutionAuthorId={ticket.solutionAuthorId}
         />
       )}
     </article>

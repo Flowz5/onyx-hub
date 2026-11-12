@@ -4,6 +4,7 @@ import "./NotificationCenter.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import {
   ArrowLeft,
+  AtSign,
   Bell,
   BellOff,
   CheckCheck,
@@ -40,6 +41,11 @@ const CATEGORY_OPTIONS: { category: NotificationCategory; label: string; descrip
     label: "Commentaires sur mes posts",
     description: "Quelqu'un réagit à une de mes publications",
   },
+  {
+    category: "mentions",
+    label: "Mentions",
+    description: "Quelqu'un me mentionne avec @ dans un message",
+  },
 ];
 
 // Icône associée à chaque catégorie
@@ -47,6 +53,7 @@ const CATEGORY_ICONS: Record<NotificationCategory, typeof Bell> = {
   newPosts: Newspaper,
   ticketReplies: MessageSquareReply,
   postComments: MessageSquare,
+  mentions: AtSign,
 };
 
 // Phrase décrivant l'action à l'origine de la notification
@@ -54,6 +61,7 @@ const ACTION_LABELS: Record<NotificationCategory, string> = {
   newPosts: "a publié",
   ticketReplies: "a répondu à votre ticket",
   postComments: "a commenté votre post",
+  mentions: "vous a mentionné dans",
 };
 
 // Date relative en français (« il y a 5 minutes »)
@@ -126,7 +134,8 @@ export const NotificationCenter: React.FC = () => {
     const notificationFocus: NotificationFocus = {
       targetId: item.targetId,
       tab: item.targetTab,
-      openThread: item.category !== "newPosts",
+      openThread: item.openThread,
+      notificationId: item.source === "thread" ? item.sourceId : undefined,
     };
     setIsOpen(false);
     navigate(`/channels/${item.channelId}`, { state: { notificationFocus } });

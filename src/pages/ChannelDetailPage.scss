@@ -12,99 +12,6 @@
   background-color: #0E1626;
 }
 
-// Barre de navigation supérieure
-.channel-detail-topbar {
-  // Au-dessus du contenu, pour que la fenêtre des notifications le recouvre
-  position: relative;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 2.5rem;
-  background: rgba(20, 33, 61, 0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-
-  @media (max-width: 768px) {
-    padding: 1rem 1.25rem;
-  }
-
-  .topbar-brand {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    cursor: pointer;
-
-    .topbar-title {
-      display: flex;
-      flex-direction: column;
-
-      .brand-name {
-        font-family: var(--font-heading);
-        font-size: 1.2rem;
-        letter-spacing: 0.08em;
-        color: $color-white;
-
-        strong {
-          color: $color-orange;
-        }
-      }
-
-      .brand-badge {
-        font-size: 0.65rem;
-        letter-spacing: 0.15em;
-        font-weight: 700;
-        color: $color-orange;
-      }
-    }
-  }
-
-  .topbar-user-area {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-
-    .user-details {
-      display: flex;
-      flex-direction: column;
-      text-align: right;
-
-      @media (max-width: 600px) {
-        display: none;
-      }
-
-      .user-name {
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: $color-white;
-      }
-
-      .user-email {
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.5);
-      }
-    }
-
-    .signout-header-btn {
-      padding: 8px 18px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 50px;
-      font-family: var(--font-body);
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: $color-white;
-      cursor: pointer;
-      transition: all 0.2s ease;
-
-      &:hover {
-        background-color: #DC2626;
-        border-color: #DC2626;
-      }
-    }
-  }
-}
-
 // Barre de navigation secondaire
 .channel-sub-nav {
   display: flex;
@@ -356,5 +263,24 @@
         }
       }
     }
+  }
+}
+
+// Bandeau d'information : cible d'une notification supprimée
+.missing-target-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(252, 163, 17, 0.08);
+  border: 1px solid rgba(252, 163, 17, 0.35);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.85);
+
+  .onyx-icon {
+    flex-shrink: 0;
+    color: $color-orange;
   }
 }
