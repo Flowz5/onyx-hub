@@ -1,0 +1,292 @@
+// =====================================================================
+// FEUILLE DE STYLE DU COMPOSANT TICKET CARD (TICKETS D'ENTRAIDE)
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.ticket-card-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  background: rgba(20, 33, 61, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 4px solid #60A5FA;
+  border-radius: 16px;
+  padding: 1.35rem 1.6rem;
+  transition: all 0.22s ease;
+  backdrop-filter: blur(6px);
+
+  &.status-open {
+    border-left-color: #22C55E;
+  }
+
+  &.status-in_progress {
+    border-left-color: #FBBF24;
+  }
+
+  &.status-resolved {
+    border-left-color: #A855F7;
+    opacity: 0.85;
+  }
+
+  &:hover {
+    background: rgba(20, 33, 61, 0.85);
+    border-color: rgba(252, 163, 17, 0.4);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  .ticket-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    .status-priority-badges {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 50px;
+        font-size: 0.72rem;
+        font-weight: 700;
+
+        .dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+
+        &.open {
+          background: rgba(34, 197, 94, 0.15);
+          color: #4ADE80;
+          border: 1px solid rgba(34, 197, 94, 0.3);
+          .dot { background-color: #22C55E; }
+        }
+
+        &.in_progress {
+          background: rgba(251, 191, 36, 0.15);
+          color: #FCD34D;
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          .dot { background-color: #FBBF24; }
+        }
+
+        &.resolved {
+          background: rgba(168, 85, 247, 0.15);
+          color: #C084FC;
+          border: 1px solid rgba(168, 85, 247, 0.3);
+          .dot { background-color: #A855F7; }
+        }
+      }
+
+      .priority-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 6px;
+
+        &.low {
+          background: rgba(96, 165, 250, 0.12);
+          color: #93C5FD;
+          border: 1px solid rgba(96, 165, 250, 0.25);
+        }
+
+        &.medium {
+          background: rgba(252, 163, 17, 0.12);
+          color: $color-orange;
+          border: 1px solid rgba(252, 163, 17, 0.25);
+        }
+
+        &.high {
+          background: rgba(239, 68, 68, 0.15);
+          color: #FCA5A5;
+          border: 1px solid rgba(239, 68, 68, 0.35);
+        }
+      }
+    }
+
+    .ticket-author-info {
+      font-size: 0.76rem;
+      color: rgba(255, 255, 255, 0.5);
+
+      strong {
+        color: $color-white;
+      }
+
+      .meta-separator {
+        margin: 0 0.4rem;
+        color: rgba(255, 255, 255, 0.25);
+      }
+    }
+  }
+
+  .ticket-title {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: $color-white;
+    line-height: 1.35;
+  }
+
+  // Contenu enrichi : les retours à la ligne sont gérés par le composant RichContent
+  .ticket-description {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .ticket-tags-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+
+    .ticket-tag-chip {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.75);
+      padding: 2px 8px;
+      border-radius: 50px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+  }
+
+  .ticket-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.85rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    flex-wrap: wrap;
+
+    // Bouton d'ouverture du fil de réponses
+    .toggle-replies-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.15rem;
+      padding: 6px 12px;
+      background: rgba(252, 163, 17, 0.08);
+      border: 1px solid rgba(252, 163, 17, 0.25);
+      border-radius: 50px;
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: $color-orange;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      .chevron {
+        margin-left: 0.25rem;
+        transition: transform 0.2s ease;
+      }
+
+      &:hover {
+        background: rgba(252, 163, 17, 0.18);
+        color: $color-white;
+      }
+
+      // Mention d'une solution retenue, aux couleurs du statut « Résolu »
+      .solution-flag {
+        margin-left: 0.3rem;
+        color: #C084FC;
+      }
+
+      &.open .chevron {
+        transform: rotate(180deg);
+      }
+    }
+
+    // Regroupement des contrôles réservés à l'auteur
+    .author-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .status-selector-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .status-selector-label {
+        font-size: 0.76rem;
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 600;
+      }
+
+      .status-dropdown {
+        background: rgba(10, 17, 32, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: $color-white;
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        outline: none;
+
+        &:focus {
+          border-color: $color-orange;
+        }
+      }
+    }
+
+    // Groupe des actions de l'auteur (modification et suppression)
+    .author-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .edit-ticket-btn,
+    .delete-ticket-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: scale(1.08);
+      }
+    }
+
+    .edit-ticket-btn {
+      background: rgba(252, 163, 17, 0.1);
+      border: 1px solid rgba(252, 163, 17, 0.3);
+      color: $color-orange;
+
+      &:hover {
+        background: $color-orange;
+        border-color: $color-orange;
+        color: $color-black;
+      }
+    }
+
+    .delete-ticket-btn {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #F87171;
+
+      &:hover {
+        background: #DC2626;
+        border-color: #DC2626;
+        color: $color-white;
+      }
+    }
+  }
+}

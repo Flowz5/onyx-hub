@@ -1,0 +1,357 @@
+// =====================================================================
+// FEUILLE DE STYLE DE LA PAGE CANAL DÉTAIL (FLUX DE POSTS & TICKETS)
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.channel-detail-page-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #0E1626;
+}
+
+// Barre de navigation supérieure
+.channel-detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2.5rem;
+  background: rgba(20, 33, 61, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  @media (max-width: 768px) {
+    padding: 1rem 1.25rem;
+  }
+
+  .topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+
+    .topbar-title {
+      display: flex;
+      flex-direction: column;
+
+      .brand-name {
+        font-family: var(--font-heading);
+        font-size: 1.2rem;
+        letter-spacing: 0.08em;
+        color: $color-white;
+
+        strong {
+          color: $color-orange;
+        }
+      }
+
+      .brand-badge {
+        font-size: 0.65rem;
+        letter-spacing: 0.15em;
+        font-weight: 700;
+        color: $color-orange;
+      }
+    }
+  }
+
+  .topbar-user-area {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+
+    .user-details {
+      display: flex;
+      flex-direction: column;
+      text-align: right;
+
+      @media (max-width: 600px) {
+        display: none;
+      }
+
+      .user-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: $color-white;
+      }
+
+      .user-email {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+      }
+    }
+
+    .signout-header-btn {
+      padding: 8px 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50px;
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: $color-white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: #DC2626;
+        border-color: #DC2626;
+      }
+    }
+  }
+}
+
+// Barre de navigation secondaire
+.channel-sub-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 0;
+
+  @media (max-width: 768px) {
+    padding: 1rem 1rem 0;
+  }
+
+  .back-to-channels-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50px;
+    padding: 8px 18px;
+    color: $color-alabaster-grey;
+    font-family: var(--font-body);
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    .back-arrow {
+      font-size: 1rem;
+      transition: transform 0.2s ease;
+    }
+
+    &:hover {
+      background: rgba(252, 163, 17, 0.15);
+      border-color: rgba(252, 163, 17, 0.4);
+      color: $color-white;
+
+      .back-arrow {
+        transform: translateX(-3px);
+      }
+    }
+  }
+
+  .current-channel-crumb {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+
+    strong {
+      color: $color-orange;
+      font-size: 0.95rem;
+    }
+
+    .crumb-pill {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 50px;
+
+      &.public {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ADE80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+      }
+
+      &.private {
+        background: rgba(252, 163, 17, 0.15);
+        color: $color-orange;
+        border: 1px solid rgba(252, 163, 17, 0.3);
+      }
+    }
+  }
+}
+
+// Contenu central de la page
+.channel-detail-main {
+  flex: 1;
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 4rem;
+
+  @media (max-width: 768px) {
+    padding: 1rem 1rem 3rem;
+  }
+
+  // Carte en-tête du canal
+  .channel-info-card {
+    background: linear-gradient(135deg, rgba(20, 33, 61, 0.7) 0%, rgba(10, 17, 32, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 1.75rem 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+
+    .info-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.65rem;
+
+      h2 {
+        font-family: var(--font-heading);
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: $color-white;
+      }
+
+      .info-tags-list {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+
+        .channel-header-tag {
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: $color-orange;
+          background: rgba(252, 163, 17, 0.12);
+          border: 1px solid rgba(252, 163, 17, 0.25);
+          padding: 3px 10px;
+          border-radius: 50px;
+        }
+      }
+    }
+
+    .channel-desc-text {
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: rgba(255, 255, 255, 0.65);
+    }
+  
+    // Ligne d'accès d'un canal privé : nombre de membres et bouton de gestion
+    .private-access-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+      .members-summary {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.6);
+
+        .onyx-icon {
+          color: $color-orange;
+        }
+      }
+
+      .manage-members-btn {
+        padding: 7px 16px;
+        background: rgba(252, 163, 17, 0.12);
+        border: 1px solid rgba(252, 163, 17, 0.45);
+        border-radius: 50px;
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: $color-orange;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(252, 163, 17, 0.22);
+          color: $color-white;
+        }
+      }
+    }
+  }
+
+  // Conteneur du flux déroulant
+  .feed-scrollable-container {
+    width: 100%;
+
+    .feed-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    // Carte vide pour le flux
+    .empty-feed-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4.5rem 2rem;
+      background: rgba(20, 33, 61, 0.4);
+      border: 1px dashed rgba(252, 163, 17, 0.3);
+      border-radius: 20px;
+      backdrop-filter: blur(8px);
+
+      // Pictogramme illustrant l'état vide du flux
+      .empty-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 72px;
+        height: 72px;
+        margin-bottom: 1rem;
+        border-radius: 50%;
+        background: rgba(252, 163, 17, 0.1);
+        border: 1px solid rgba(252, 163, 17, 0.3);
+        color: $color-orange;
+      }
+
+      h4 {
+        font-family: var(--font-heading);
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: $color-white;
+        margin-bottom: 0.6rem;
+      }
+
+      p {
+        font-size: 0.9rem;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.6);
+        max-width: 480px;
+        margin-bottom: 1.5rem;
+      }
+
+      .empty-cta-btn {
+        padding: 10px 22px;
+        background: linear-gradient(135deg, $color-orange 0%, $color-orange-hover 100%);
+        border: none;
+        border-radius: 50px;
+        font-family: var(--font-body);
+        font-size: 0.86rem;
+        font-weight: 700;
+        color: $color-black;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(252, 163, 17, 0.3);
+        transition: all 0.2s ease;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(252, 163, 17, 0.4);
+          background: linear-gradient(135deg, #FDB53D 0%, $color-orange 100%);
+        }
+      }
+    }
+  }
+}

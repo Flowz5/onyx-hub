@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PublicOnlyRoute } from "./components/PublicOnlyRoute";
 import { AuthPage } from "./pages/AuthPage";
 import { ChannelsPage } from "./pages/ChannelsPage";
+import { ChannelDetailPage } from "./pages/ChannelDetailPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 
 // Configuration du routeur principal de l'application
@@ -24,6 +25,7 @@ function App() {
           {/* Routes privées sécurisées nécessitant une authentification active */}
           <Route element={<ProtectedRoute />}>
             <Route path="/channels" element={<ChannelsPage />} />
+            <Route path="/channels/:channelId" element={<ChannelDetailPage />} />
           </Route>
 
           {/* Redirections automatiques des routes par défaut et inconnues */}
