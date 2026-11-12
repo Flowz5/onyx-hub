@@ -16,7 +16,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Ticket, NewTicketFormData, TicketStatus, TicketReply } from "../types/ticket";
+import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
 
 const TICKETS_COLLECTION = "tickets";
 const CHANNELS_COLLECTION = "channels";
@@ -188,78 +188,4 @@ export const subscribeToChannelTickets = (
     mainUnsubscribe();
     if (fallbackUnsubscribe) fallbackUnsubscribe();
   };
-};
-
-// =====================================================================
-// RÉPONSES AUX TICKETS (sous-collection tickets/{ticketId}/replies)
-// =====================================================================
-
-const REPLIES_SUBCOLLECTION = "replies";
-
-// Ajout d'une réponse à un ticket.
-// L'écriture est atomique : la réponse est créée et le compteur du ticket incrémenté.
-export const addTicketReply = async (
-  ticketId: string,
-  content: string,
-  user: { uid: string; displayName?: string | null; email?: string | null }
-): Promise<void> => {
-  const replyDocRef = doc(collection(db, TICKETS_COLLECTION, ticketId, REPLIES_SUBCOLLECTION));
-  const batch = writeBatch(db);
-  batch.set(replyDocRef, {
-    content,
-    authorId: user.uid,
-    authorName: user.displayName || user.email || "Étudiant",
-    createdAt: serverTimestamp(),
-  });
-  batch.update(doc(db, TICKETS_COLLECTION, ticketId), {
-    repliesCount: increment(1),
-  });
-  await batch.commit();
-};
-
-// Suppression d'une réponse par son auteur et décrémentation atomique du compteur du ticket
-export const deleteTicketReply = async (ticketId: string, replyId: string): Promise<void> => {
-  const batch = writeBatch(db);
-  batch.delete(doc(db, TICKETS_COLLECTION, ticketId, REPLIES_SUBCOLLECTION, replyId));
-  batch.update(doc(db, TICKETS_COLLECTION, ticketId), {
-    repliesCount: increment(-1),
-  });
-  await batch.commit();
-};
-
-// Écoute en temps réel des réponses d'un ticket, de la plus ancienne à la plus récente
-export const subscribeToTicketReplies = (
-  ticketId: string,
-  onRepliesUpdate: (replies: TicketReply[]) => void,
-  onError?: (error: Error) => void
-): Unsubscribe => {
-  const repliesQuery = query(
-    collection(db, TICKETS_COLLECTION, ticketId, REPLIES_SUBCOLLECTION),
-    orderBy("createdAt", "asc")
-  );
-
-  return onSnapshot(
-    repliesQuery,
-    (snapshot) => {
-      const replies: TicketReply[] = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          ticketId,
-          content: data.content || "",
-          authorId: data.authorId || "",
-          authorName: data.authorName || "Étudiant",
-          // Horodatage local en attendant la confirmation du serveur
-          createdAt: data.createdAt?.toDate
-            ? data.createdAt.toDate().toISOString()
-            : new Date().toISOString(),
-        };
-      });
-      onRepliesUpdate(replies);
-    },
-    (error) => {
-      console.error("Erreur écoute des réponses du ticket :", error);
-      if (onError) onError(error);
-    }
-  );
 };
