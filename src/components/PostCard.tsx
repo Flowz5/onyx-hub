@@ -5,6 +5,7 @@ import { RichContent } from "./RichContent";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { ArrowBigUp, ChevronDown, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import { DiscussionThread } from "./DiscussionThread";
+import { AuthorLink } from "./UserAvatar";
 
 interface PostCardProps {
   post: Post;
@@ -94,7 +95,9 @@ export const PostCard: React.FC<PostCardProps> = ({
       <div className="post-content-area">
         {/* En-tête métadonnées */}
         <div className="post-meta-header">
-          <span className="post-author">Posté par <strong>{post.authorName}</strong></span>
+          <span className="post-author">
+            Posté par <AuthorLink uid={post.authorId} fallbackName={post.authorName} avatarSize={22} />
+          </span>
           <span className="meta-separator">•</span>
           <span className="post-date">{formattedDate}</span>
 

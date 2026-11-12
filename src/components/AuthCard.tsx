@@ -6,8 +6,8 @@ import {
   updateProfile,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "../services/firebase";
+import { auth } from "../services/firebase";
+import { defaultDisplayName, ensureUserProfile, updateUserProfile } from "../services/profileService";
 import { OnyxLogo } from "./OnyxLogo";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { X } from "lucide-react";
@@ -98,17 +98,16 @@ export const AuthCard: React.FC = () => {
           displayName: displayName.trim(),
         });
 
-        // Enregistrement du profil dans la collection Firestore "users"
+        // Le profil public est créé à l'ouverture de session ; le pseudo choisi y est ensuite reporté
         try {
-          await setDoc(doc(db, "users", user.uid), {
-            uid: user.uid,
-            displayName: displayName.trim(),
-            email: user.email,
-            createdAt: serverTimestamp(),
-            role: "student",
+          await ensureUserProfile(user);
+          await updateUserProfile(user, {
+            displayName: defaultDisplayName({ displayName: displayName.trim(), email: user.email }),
+            bio: "",
+            photoDataUrl: null,
           });
-        } catch (firestoreError) {
-          console.warn("Écriture du document utilisateur Firestore différée:", firestoreError);
+        } catch (profileError) {
+          console.warn("Enregistrement du profil utilisateur différé :", profileError);
         }
 
         setSuccessMessage("Compte créé avec succès ! Redirection en cours...");
