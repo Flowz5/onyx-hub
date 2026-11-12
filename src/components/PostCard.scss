@@ -119,11 +119,11 @@
       line-height: 1.35;
     }
 
+    // Contenu enrichi : les retours à la ligne sont gérés par le composant RichContent
     .post-body-text {
       font-size: 0.88rem;
       line-height: 1.55;
       color: rgba(255, 255, 255, 0.72);
-      white-space: pre-wrap;
     }
 
     .post-footer {

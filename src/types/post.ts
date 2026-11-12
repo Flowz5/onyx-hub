@@ -23,3 +23,6 @@ export interface NewPostFormData {
   content: string;
   tags: string[];
 }
+
+// Longueur maximale du contenu d'un post (Markdown, blocs de code inclus)
+export const MAX_POST_CONTENT_LENGTH = 10000;

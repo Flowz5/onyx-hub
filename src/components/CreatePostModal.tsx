@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import type { NewPostFormData } from "../types/post";
+import { MAX_POST_CONTENT_LENGTH, type NewPostFormData } from "../types/post";
+import { RichTextEditor } from "./RichTextEditor";
 import "./CreatePostModal.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { Check, CircleAlert, Plus, X } from "lucide-react";
@@ -188,14 +189,16 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             <label htmlFor="post-content-input" className="form-label">
               Corps du message <span className="required-mark">*</span>
             </label>
-            <textarea
+            {/* Éditeur enrichi : texte, liens, images et blocs de code */}
+            <RichTextEditor
               id="post-content-input"
-              className="modal-textarea"
-              rows={5}
-              placeholder="Expliquez en détail votre sujet, partagez vos liens ou posez votre question..."
+              rows={6}
+              maxLength={MAX_POST_CONTENT_LENGTH}
+              placeholder="Expliquez en détail votre sujet, partagez vos liens, images ou extraits de code..."
               value={content}
-              onChange={(e) => {
-                setContent(e.target.value);
+              disabled={isSubmitting}
+              onChange={(nextValue) => {
+                setContent(nextValue);
                 if (errorMessage) setErrorMessage(null);
               }}
             />

@@ -1,6 +1,7 @@
 import React from "react";
 import type { Post } from "../types/post";
 import "./PostCard.scss";
+import { RichContent } from "./RichContent";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { ArrowBigUp, MessageSquare, Pencil, Trash2 } from "lucide-react";
 
@@ -98,7 +99,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         <h3 className="post-title">{post.title}</h3>
 
         {/* Corps du message */}
-        <p className="post-body-text">{post.content}</p>
+        <RichContent className="post-body-text" content={post.content} />
 
         {/* Pied de carte avec actions */}
         <div className="post-footer">

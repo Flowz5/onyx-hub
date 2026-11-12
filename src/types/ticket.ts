@@ -41,4 +41,7 @@ export interface TicketReply {
 }
 
 // Longueur maximale d'une réponse à un ticket
-export const MAX_REPLY_LENGTH = 3000;
+export const MAX_REPLY_LENGTH = 5000;
+
+// Longueur maximale de la description d'un ticket (Markdown, blocs de code inclus)
+export const MAX_TICKET_DESCRIPTION_LENGTH = 10000;

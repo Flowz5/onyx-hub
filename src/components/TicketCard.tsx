@@ -4,6 +4,7 @@ import "./TicketCard.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { ChevronDown, MessageSquareReply, Pencil, Trash2 } from "lucide-react";
 import { TicketReplies } from "./TicketReplies";
+import { RichContent } from "./RichContent";
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -88,7 +89,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
       <h3 className="ticket-title">{ticket.title}</h3>
 
       {/* Description du problème rencontré */}
-      <p className="ticket-description">{ticket.description}</p>
+      <RichContent className="ticket-description" content={ticket.description} />
 
       {/* Thématiques et Tags associés */}
       {ticket.tags.length > 0 && (

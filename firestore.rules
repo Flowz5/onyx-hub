@@ -166,7 +166,7 @@ service cloud.firestore {
              ])
           && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 4 && data.title.size() <= 120
-          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 10000
           && areValidFeedTags(data.tags)
           && data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100
           && data.createdAt == request.time
@@ -193,7 +193,7 @@ service cloud.firestore {
       return isOwner(resource.data.authorId)
           && data.diff(resource.data).affectedKeys().hasOnly(['title', 'content', 'tags'])
           && data.title is string && data.title.size() >= 4 && data.title.size() <= 120
-          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 10000
           && areValidFeedTags(data.tags);
     }
 
@@ -203,7 +203,7 @@ service cloud.firestore {
       return isOwner(resource.data.authorId)
           && data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'priority', 'tags'])
           && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
-          && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
+          && data.description is string && data.description.size() > 0 && data.description.size() <= 10000
           && data.priority in ['low', 'medium', 'high']
           && areValidFeedTags(data.tags);
     }
@@ -233,7 +233,7 @@ service cloud.firestore {
           && (!('solutionReplyId' in data) || data.solutionReplyId == null)
           && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
-          && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
+          && data.description is string && data.description.size() > 0 && data.description.size() <= 10000
           && data.status == 'open'
           && data.priority in ['low', 'medium', 'high']
           && areValidFeedTags(data.tags)
@@ -309,7 +309,7 @@ service cloud.firestore {
                       && request.resource.data.keys().hasOnly(['content', 'authorId', 'authorName', 'createdAt'])
                       && request.resource.data.content is string
                       && request.resource.data.content.size() > 0
-                      && request.resource.data.content.size() <= 3000
+                      && request.resource.data.content.size() <= 5000
                       && request.resource.data.authorName is string
                       && request.resource.data.authorName.size() > 0
                       && request.resource.data.authorName.size() <= 100
