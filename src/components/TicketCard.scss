@@ -290,3 +290,16 @@
     }
   }
 }
+
+// Carte ciblée par une notification : bordure dorée et halo temporaire
+.ticket-card-item.is-focused {
+  border-color: rgba(252, 163, 17, 0.75);
+  animation: notification-focus-glow 2.4s ease-out 1;
+}
+
+// Halo doré d'une carte ouverte depuis une notification
+@keyframes notification-focus-glow {
+  0% { box-shadow: 0 0 0 0 rgba(252, 163, 17, 0.6); }
+  40% { box-shadow: 0 0 0 6px rgba(252, 163, 17, 0.25); }
+  100% { box-shadow: 0 0 0 0 rgba(252, 163, 17, 0); }
+}

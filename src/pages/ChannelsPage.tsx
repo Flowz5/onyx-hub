@@ -5,6 +5,7 @@ import { OnyxLogo } from "../components/OnyxLogo";
 import { ChannelSearchBar } from "../components/ChannelSearchBar";
 import { ChannelRow } from "../components/ChannelRow";
 import { CreateChannelModal } from "../components/CreateChannelModal";
+import { NotificationCenter } from "../components/NotificationCenter";
 import type { Channel, NewChannelFormData } from "../types/channel";
 import {
   createChannelInFirestore,
@@ -209,6 +210,7 @@ export const ChannelsPage: React.FC = () => {
             <span className="user-name">{user?.displayName || "Étudiant"}</span>
             <span className="user-email">{user?.email}</span>
           </div>
+          <NotificationCenter />
           <button
             type="button"
             className="signout-header-btn"
