@@ -70,6 +70,18 @@
     }
   }
 
+  // Emplacement affiché pendant le chargement ou en cas d'image indisponible
+  .rich-image-placeholder {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.6rem 0.9rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
   // Code en ligne
   :not(pre) > code {
     padding: 1px 6px;

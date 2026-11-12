@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import React, { useEffect, useState } from "react";
+import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "./RichContent.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ImageOff } from "lucide-react";
+import { ONYX_IMAGE_PREFIX, getImageDataUrl } from "../services/imageService";
 
 interface RichContentProps {
   // Contenu au format Markdown (texte, liens, images, blocs de code)
@@ -67,6 +68,43 @@ const CodeBlock: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   );
 };
 
+// Image interne stockée dans Firestore, chargée à l'affichage
+const StoredImage: React.FC<{ imageId: string; alt: string }> = ({ imageId, alt }) => {
+  // undefined : chargement en cours ; null : image introuvable ou inaccessible
+  const [dataUrl, setDataUrl] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    let isActive = true;
+    getImageDataUrl(imageId).then((result) => {
+      if (isActive) setDataUrl(result);
+    });
+    return () => {
+      isActive = false;
+    };
+  }, [imageId]);
+
+  if (dataUrl === undefined) {
+    return <span className="rich-image-placeholder">Chargement de l'image...</span>;
+  }
+  if (dataUrl === null) {
+    return (
+      <span className="rich-image-placeholder">
+        <ImageOff className="onyx-icon onyx-icon--leading" size={14} strokeWidth={2} aria-hidden="true" />
+        Image indisponible
+      </span>
+    );
+  }
+  return (
+    <a href={dataUrl} target="_blank" rel="noopener noreferrer" className="rich-image-link">
+      <img src={dataUrl} alt={alt} loading="lazy" />
+    </a>
+  );
+};
+
+// Autorisation du protocole interne « onyx-image: » en plus des protocoles sûrs par défaut
+const urlTransform = (url: string): string =>
+  url.startsWith(ONYX_IMAGE_PREFIX) ? url : defaultUrlTransform(url);
+
 // Personnalisation du rendu des éléments Markdown
 const markdownComponents: Components = {
   // Liens ouverts dans un nouvel onglet, sans transmission du contexte de la page
@@ -77,7 +115,9 @@ const markdownComponents: Components = {
   ),
   // Images chargées à la demande, cliquables pour un affichage en taille réelle
   img: ({ src, alt }) =>
-    typeof src === "string" ? (
+    typeof src === "string" && src.startsWith(ONYX_IMAGE_PREFIX) ? (
+      <StoredImage imageId={src.slice(ONYX_IMAGE_PREFIX.length)} alt={alt || "Image partagée"} />
+    ) : typeof src === "string" && src ? (
       <a href={src} target="_blank" rel="noopener noreferrer" className="rich-image-link">
         <img src={src} alt={alt || "Image partagée"} loading="lazy" />
       </a>
@@ -93,6 +133,7 @@ export const RichContent: React.FC<RichContentProps> = ({ content, className = "
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeHighlight, { detect: false }]]}
         components={markdownComponents}
+        urlTransform={urlTransform}
       >
         {content}
       </ReactMarkdown>
