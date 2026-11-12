@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import "./CreateChannelModal.scss";
 
 import type { NewChannelFormData } from "../types/channel";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { Check, CircleAlert, Plus, X } from "lucide-react";
 export type { NewChannelFormData };
 
 // Propriétés attendues par le composant modale
@@ -146,14 +148,14 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
             onClick={onClose}
             aria-label="Fermer la modale"
           >
-            ✕
+            <X className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
 
         {/* Message d'erreur de validation si présent */}
         {errorMessage && (
           <div className="modal-error-banner" role="alert">
-            <span className="error-icon">!</span>
+            <span className="error-icon"><CircleAlert className="onyx-icon" size={18} strokeWidth={2} aria-hidden="true" /></span>
             <span>{errorMessage}</span>
           </div>
         )}
@@ -218,7 +220,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                     onClick={() => handleRemoveTag(tag)}
                     title={`Supprimer le tag ${tag}`}
                   >
-                    ✕
+                    <X className="onyx-icon" size={12} strokeWidth={2} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -236,7 +238,11 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                     className={`preset-tag-btn ${isSelected ? "selected" : ""}`}
                     onClick={() => togglePresetTag(tag)}
                   >
-                    {isSelected ? "✓ " : "+ "}
+                    {isSelected ? (
+                      <Check className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <Plus className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
+                    )}
                     {tag}
                   </button>
                 );

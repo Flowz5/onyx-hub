@@ -40,3 +40,15 @@ html, body {
   display: flex;
   flex-direction: column;
 }
+
+// Icônes vectorielles (lucide-react) : alignement sur la ligne de base du texte
+.onyx-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: -0.15em;
+}
+
+// Espacement d'une icône placée devant un libellé
+.onyx-icon--leading {
+  margin-right: 0.4em;
+}
