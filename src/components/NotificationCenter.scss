@@ -1,0 +1,362 @@
+// =====================================================================
+// FEUILLE DE STYLE DU CENTRE DE NOTIFICATIONS (CLOCHE ET FENÊTRE)
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.notification-center {
+  position: relative;
+}
+
+// Bouton cloche de la barre de navigation
+.notification-bell-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  color: $color-white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover,
+  &.active {
+    border-color: rgba(252, 163, 17, 0.6);
+    color: $color-orange;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-orange;
+    outline-offset: 2px;
+  }
+
+  // Pastille du nombre de notifications non lues
+  .notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: $color-orange;
+    color: $color-black;
+    font-size: 0.65rem;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 0 0 2px $color-prussian-blue;
+  }
+}
+
+// Fenêtre des notifications, ancrée sous la cloche
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 1000;
+  width: 380px;
+  max-height: min(520px, calc(100vh - 100px));
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg, rgba(20, 33, 61, 0.98) 0%, rgba(14, 22, 38, 0.99) 100%);
+  border: 1px solid rgba(252, 163, 17, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+
+  // Sur mobile, la fenêtre occupe la largeur de l'écran
+  @media (max-width: 600px) {
+    position: fixed;
+    top: 72px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+}
+
+.notification-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  h2 {
+    flex: 1;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: $color-white;
+  }
+
+  .panel-header-actions {
+    display: flex;
+    gap: 0.35rem;
+  }
+}
+
+// Bouton d'icône de l'en-tête (tout lire, paramètres, retour, fermer)
+.panel-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(252, 163, 17, 0.5);
+    color: $color-orange;
+  }
+
+  &.danger:hover:not(:disabled) {
+    border-color: rgba(220, 38, 38, 0.6);
+    color: #F87171;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.notification-error {
+  margin: 0.75rem 1rem 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  color: #FCA5A5;
+  font-size: 0.8rem;
+}
+
+// Liste des notifications
+.notification-list {
+  overflow-y: auto;
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0.4rem;
+  }
+}
+
+.notification-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  text-align: left;
+  font-family: var(--font-body);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-orange;
+    outline-offset: -2px;
+  }
+
+  &.unread {
+    background: rgba(252, 163, 17, 0.06);
+    color: $color-white;
+
+    &:hover {
+      background: rgba(252, 163, 17, 0.11);
+    }
+  }
+
+  .notification-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .notification-message {
+    font-size: 0.84rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+
+    strong {
+      font-weight: 700;
+    }
+
+    em {
+      font-style: normal;
+      color: $color-orange;
+    }
+  }
+
+  .notification-meta {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .unread-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-top: 0.4rem;
+    border-radius: 50%;
+    background: $color-orange;
+  }
+}
+
+// Pastille d'icône par catégorie
+.notification-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(252, 163, 17, 0.12);
+  border: 1px solid rgba(252, 163, 17, 0.3);
+  color: $color-orange;
+
+  &.ticketReplies {
+    background: rgba(96, 165, 250, 0.12);
+    border-color: rgba(96, 165, 250, 0.35);
+    color: #60A5FA;
+  }
+
+  &.postComments {
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.35);
+    color: #34D399;
+  }
+}
+
+// État vide ou chargement
+.notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+
+  .empty-link-btn {
+    background: none;
+    border: none;
+    color: $color-orange;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+}
+
+// Vue paramètres
+.notification-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem 1.1rem;
+  overflow-y: auto;
+
+  .settings-intro {
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+
+  .settings-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .settings-label {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: $color-white;
+  }
+
+  .settings-description {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+// Interrupteur (case à cocher stylisée)
+.settings-switch {
+  appearance: none;
+  flex-shrink: 0;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: $color-white;
+    transition: transform 0.2s ease;
+  }
+
+  &:checked {
+    background: $color-orange;
+
+    &::after {
+      transform: translateX(18px);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-orange;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
