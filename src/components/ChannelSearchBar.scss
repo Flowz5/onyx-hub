@@ -1,0 +1,198 @@
+// =====================================================================
+// FEUILLE DE STYLE DU COMPOSANT DE RECHERCHE ET GESTION DES TAGS
+// =====================================================================
+
+@use "../styles/variables" as *;
+
+.channel-search-bar-component {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
+
+  // Champ de recherche principal
+  .main-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: rgba(20, 33, 61, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 0 1.25rem;
+    transition: all 0.25s ease;
+    backdrop-filter: blur(8px);
+
+    &:focus-within {
+      border-color: rgba(252, 163, 17, 0.6);
+      background: rgba(20, 33, 61, 0.9);
+      box-shadow: 0 0 0 3px rgba(252, 163, 17, 0.15), 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .search-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.45);
+      margin-right: 0.85rem;
+      pointer-events: none;
+    }
+
+    .search-input {
+      flex: 1;
+      height: 52px;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      color: $color-white;
+
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.38);
+      }
+    }
+
+    .clear-search-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: $color-white;
+      }
+    }
+  }
+
+  // Zone de gestion des tags
+  .tags-management-area {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    // Mini champ de recherche dédié aux tags
+    .tag-filter-search-wrapper {
+      display: flex;
+      align-items: center;
+      background: rgba(10, 17, 32, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      padding: 0 0.85rem;
+      height: 36px;
+      min-width: 190px;
+      transition: all 0.2s ease;
+
+      &:focus-within {
+        border-color: rgba(252, 163, 17, 0.5);
+        box-shadow: 0 0 0 2px rgba(252, 163, 17, 0.12);
+      }
+
+      .tag-search-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: $color-orange;
+        margin-right: 0.5rem;
+        opacity: 0.8;
+      }
+
+      .tag-filter-input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        color: $color-white;
+
+        &::placeholder {
+          color: rgba(255, 255, 255, 0.35);
+        }
+      }
+
+      .clear-tag-search-btn {
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.7rem;
+        cursor: pointer;
+        padding: 0 4px;
+
+        &:hover {
+          color: $color-white;
+        }
+      }
+    }
+
+    // Liste des pilules de tags
+    .tags-pills-list {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      flex: 1;
+
+      .tag-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50px;
+        padding: 6px 14px;
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.75);
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        .tag-hash {
+          color: $color-orange;
+          font-weight: 700;
+        }
+
+        &:hover {
+          background: rgba(252, 163, 17, 0.12);
+          border-color: rgba(252, 163, 17, 0.4);
+          color: $color-white;
+          transform: translateY(-1px);
+        }
+
+        &.active {
+          background: $color-orange;
+          border-color: $color-orange;
+          color: $color-black;
+          font-weight: 700;
+          box-shadow: 0 4px 14px rgba(252, 163, 17, 0.35);
+
+          .tag-hash {
+            color: $color-black;
+          }
+        }
+      }
+
+      .no-tags-matched {
+        font-size: 0.78rem;
+        color: rgba(255, 255, 255, 0.4);
+        font-style: italic;
+      }
+    }
+  }
+}

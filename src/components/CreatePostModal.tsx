@@ -1,0 +1,259 @@
+import React, { useState, useEffect } from "react";
+import type { NewPostFormData } from "../types/post";
+import "./CreatePostModal.scss";
+
+interface CreatePostModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  // Enregistrement asynchrone : la promesse est rejetée en cas d'échec Firestore
+  onSubmit: (data: NewPostFormData) => Promise<void>;
+  suggestedTags?: string[];
+}
+
+const DEFAULT_SUGGESTIONS = ["Question", "Ressource", "Annonce", "Discussion", "Projet"];
+
+export const CreatePostModal: React.FC<CreatePostModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  suggestedTags = DEFAULT_SUGGESTIONS,
+}) => {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>(["Discussion"]);
+  const [customTagInput, setCustomTagInput] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Indicateur d'envoi en cours, empêchant les doubles soumissions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTitle("");
+      setContent("");
+      setSelectedTags(["Discussion"]);
+      setCustomTagInput("");
+      setErrorMessage(null);
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const toggleTag = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter((t) => t !== tag));
+    } else {
+      if (selectedTags.length >= 4) {
+        setErrorMessage("Vous pouvez associer 4 tags maximum.");
+        return;
+      }
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
+
+  const handleAddCustomTag = (e: React.FormEvent | React.KeyboardEvent) => {
+    e.preventDefault();
+    const clean = customTagInput.trim();
+    if (!clean) return;
+    if (selectedTags.map((t) => t.toLowerCase()).includes(clean.toLowerCase())) {
+      setCustomTagInput("");
+      return;
+    }
+    if (selectedTags.length >= 4) {
+      setErrorMessage("Vous pouvez associer 4 tags maximum.");
+      return;
+    }
+    setSelectedTags([...selectedTags, clean]);
+    setCustomTagInput("");
+    setErrorMessage(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    const cleanTitle = title.trim();
+    const cleanContent = content.trim();
+
+    if (!cleanTitle) {
+      setErrorMessage("Veuillez donner un titre à votre publication.");
+      return;
+    }
+
+    if (cleanTitle.length < 4) {
+      setErrorMessage("Le titre doit comporter au moins 4 caractères.");
+      return;
+    }
+
+    if (!cleanContent) {
+      setErrorMessage("Veuillez rédiger le contenu de votre message.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        title: cleanTitle,
+        content: cleanContent,
+        tags: selectedTags,
+      });
+    } catch {
+      // Message affiché dans la modale, qui reste ouverte pour permettre une nouvelle tentative
+      setErrorMessage("L'enregistrement a échoué. Vérifiez votre connexion puis réessayez.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="create-post-overlay" onClick={onClose}>
+      <div
+        className="create-post-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-post-title"
+      >
+        <div className="modal-header">
+          <div className="header-title-area">
+            <span className="modal-badge">NOUVELLE PUBLICATION</span>
+            <h2 id="modal-post-title">Créer un post de discussion</h2>
+            <p>Partagez une astuce, une question de cours ou une ressource utile.</p>
+          </div>
+          <button
+            type="button"
+            className="close-modal-btn"
+            onClick={onClose}
+            aria-label="Fermer la modale"
+          >
+            ✕
+          </button>
+        </div>
+
+        {errorMessage && (
+          <div className="modal-error-banner" role="alert">
+            <span className="error-icon">!</span>
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-group">
+            <label htmlFor="post-title-input" className="form-label">
+              Titre de la publication <span className="required-mark">*</span>
+            </label>
+            <input
+              id="post-title-input"
+              type="text"
+              className="modal-input"
+              placeholder="ex: Comment optimiser le state en React ? Annales de maths dispo..."
+              maxLength={120}
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (errorMessage) setErrorMessage(null);
+              }}
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="post-content-input" className="form-label">
+              Corps du message <span className="required-mark">*</span>
+            </label>
+            <textarea
+              id="post-content-input"
+              className="modal-textarea"
+              rows={5}
+              placeholder="Expliquez en détail votre sujet, partagez vos liens ou posez votre question..."
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                if (errorMessage) setErrorMessage(null);
+              }}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Thématiques & Tags</label>
+            <div className="selected-tags-chips">
+              {selectedTags.map((tag) => (
+                <span key={tag} className="tag-chip">
+                  #{tag}
+                  <button
+                    type="button"
+                    className="remove-chip-btn"
+                    onClick={() => toggleTag(tag)}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <div className="suggestions-list">
+              <span className="suggest-label">Suggestions :</span>
+              {suggestedTags.map((tag) => {
+                const isSelected = selectedTags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`suggest-tag-btn ${isSelected ? "selected" : ""}`}
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {isSelected ? "✓ " : "+ "}
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="custom-tag-row">
+              <input
+                type="text"
+                className="custom-tag-input"
+                placeholder="Ajouter un tag..."
+                value={customTagInput}
+                maxLength={25}
+                onChange={(e) => setCustomTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCustomTag(e);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="add-tag-btn"
+                onClick={handleAddCustomTag}
+              >
+                Ajouter
+              </button>
+            </div>
+          </div>
+
+          <div className="modal-actions-footer">
+            <button type="button" className="cancel-btn" onClick={onClose} disabled={isSubmitting}>
+              Annuler
+            </button>
+            <button type="submit" className="submit-create-btn" disabled={isSubmitting}>
+              {isSubmitting ? "Publication..." : "Publier le post"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
