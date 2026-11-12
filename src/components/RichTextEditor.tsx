@@ -1,8 +1,11 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import "./RichTextEditor.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { Code, Eye, ImagePlus, Link2, Loader2, PenLine, SquareCode } from "lucide-react";
+import { AtSign, Code, Eye, ImagePlus, Link2, Loader2, PenLine, SquareCode } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useMentionCandidates } from "../context/MentionContext";
+import { formatMention } from "../types/mention";
+import { UserAvatar } from "./UserAvatar";
 import { ACCEPTED_IMAGE_TYPES, uploadImage } from "../services/imageService";
 import { RichContent } from "./RichContent";
 
@@ -34,7 +37,17 @@ const CODE_LANGUAGES = [
   "json",
 ];
 
-// Éditeur de texte enrichi au format Markdown : liens, images, code en ligne et blocs de code
+// Nombre maximal de suggestions affichées lors d'une mention
+const MAX_MENTION_SUGGESTIONS = 6;
+
+// Saisie d'une mention en cours juste avant le curseur : « @ » suivi de quelques caractères
+const PENDING_MENTION_PATTERN = /(?:^|\s)@([^\s@[\]()]{0,30})$/;
+
+// Normalisation pour une recherche insensible à la casse et aux accents
+const normalizeForSearch = (text: string): string =>
+  text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+// Éditeur de texte enrichi au format Markdown : liens, images, code en ligne, blocs de code et mentions
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   id,
   value,
@@ -54,6 +67,78 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [codeLanguage, setCodeLanguage] = useState("javascript");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Mention en cours de saisie : position du « @ » et texte tapé après lui
+  const mentionCandidates = useMentionCandidates();
+  const [pendingMention, setPendingMention] = useState<{ start: number; query: string } | null>(null);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
+
+  const mentionSuggestions = useMemo(() => {
+    if (!pendingMention) return [];
+    const query = normalizeForSearch(pendingMention.query);
+    return mentionCandidates
+      .filter((candidate) => normalizeForSearch(candidate.displayName).includes(query))
+      .slice(0, MAX_MENTION_SUGGESTIONS);
+  }, [pendingMention, mentionCandidates]);
+
+  const isMentionMenuOpen = pendingMention !== null && mentionSuggestions.length > 0;
+
+  // Détection d'une mention en cours à partir du texte situé avant le curseur
+  const detectPendingMention = (text: string, caret: number) => {
+    if (mentionCandidates.length === 0) return;
+    const match = PENDING_MENTION_PATTERN.exec(text.slice(0, caret));
+    if (match) {
+      setPendingMention({ start: caret - match[1].length - 1, query: match[1] });
+      setActiveSuggestion(0);
+    } else {
+      setPendingMention(null);
+    }
+  };
+
+  // Remplacement de « @texte » par la mention complète du candidat choisi
+  const selectMention = (candidateIndex: number) => {
+    const candidate = mentionSuggestions[candidateIndex];
+    const textarea = textareaRef.current;
+    if (!candidate || !pendingMention || !textarea) return;
+    const caret = textarea.selectionStart;
+    const mention = `${formatMention(candidate.displayName, candidate.uid)} `;
+    const nextValue = value.slice(0, pendingMention.start) + mention + value.slice(caret);
+    if (maxLength && nextValue.length > maxLength) return;
+    onChange(nextValue);
+    setPendingMention(null);
+
+    const nextCaret = pendingMention.start + mention.length;
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCaret, nextCaret);
+    });
+  };
+
+  // Navigation clavier dans les suggestions, sinon raccourcis du parent
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isMentionMenuOpen && !e.ctrlKey && !e.metaKey) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const step = e.key === "ArrowDown" ? 1 : -1;
+        setActiveSuggestion(
+          (index) => (index + step + mentionSuggestions.length) % mentionSuggestions.length
+        );
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        selectMention(activeSuggestion);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setPendingMention(null);
+        return;
+      }
+    }
+    onKeyDown?.(e);
+  };
 
   // Insertion d'un fragment à la position du curseur, en entourant l'éventuelle sélection.
   // La zone sélectionnée après insertion correspond au texte à compléter par l'utilisateur.
@@ -84,6 +169,23 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const handleInsertLink = () => insertAtCursor("[", "](https://)", "texte du lien");
 
   const handleInsertInlineCode = () => insertAtCursor("`", "`", "code");
+
+  // Insertion d'un « @ » ouvrant la liste des personnes mentionnables
+  const handleInsertMention = () => {
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? value.length;
+    const prefix = start > 0 && !/\s/.test(value[start - 1]) ? " @" : "@";
+    const nextValue = value.slice(0, start) + prefix + value.slice(textarea?.selectionEnd ?? start);
+    if (maxLength && nextValue.length > maxLength) return;
+    onChange(nextValue);
+    const caret = start + prefix.length;
+    setPendingMention({ start: caret - 1, query: "" });
+    setActiveSuggestion(0);
+    requestAnimationFrame(() => {
+      textarea?.focus();
+      textarea?.setSelectionRange(caret, caret);
+    });
+  };
 
   const handleInsertCodeBlock = () =>
     insertAtCursor(`${blockPrefix()}\`\`\`${codeLanguage}\n`, "\n```\n", "// votre code ici");
@@ -169,6 +271,18 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
               <ImagePlus className="onyx-icon" size={15} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
+          {mentionCandidates.length > 0 && (
+            <button
+              type="button"
+              className="tool-btn"
+              onClick={handleInsertMention}
+              disabled={isToolbarDisabled}
+              title="Mentionner un membre du canal"
+              aria-label="Mentionner un membre du canal"
+            >
+              <AtSign className="onyx-icon" size={15} strokeWidth={2} aria-hidden="true" />
+            </button>
+          )}
           <button
             type="button"
             className="tool-btn"
@@ -219,20 +333,52 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       {/* Zone d'écriture ou aperçu du rendu final */}
       {mode === "write" ? (
-        <textarea
-          ref={textareaRef}
-          id={id}
-          className="editor-textarea"
-          rows={rows}
-          maxLength={maxLength}
-          placeholder={placeholder}
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          aria-label={ariaLabel}
-          spellCheck
-        />
+        <div className="editor-write-area">
+          <textarea
+            ref={textareaRef}
+            id={id}
+            className="editor-textarea"
+            rows={rows}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            value={value}
+            disabled={disabled}
+            onChange={(e) => {
+              onChange(e.target.value);
+              detectPendingMention(e.target.value, e.target.selectionStart);
+            }}
+            onKeyDown={handleTextareaKeyDown}
+            onClick={(e) => detectPendingMention(value, e.currentTarget.selectionStart)}
+            onBlur={() => setPendingMention(null)}
+            aria-label={ariaLabel}
+            aria-autocomplete="list"
+            aria-expanded={isMentionMenuOpen}
+            spellCheck
+          />
+
+          {/* Suggestions de mention : membres du canal correspondant au texte tapé après « @ » */}
+          {isMentionMenuOpen && (
+            <ul className="mention-suggestions" role="listbox" aria-label="Membres à mentionner">
+              {mentionSuggestions.map((candidate, index) => (
+                <li
+                  key={candidate.uid}
+                  role="option"
+                  aria-selected={index === activeSuggestion}
+                  className={index === activeSuggestion ? "active" : ""}
+                  // mousedown plutôt que click : la sélection précède la perte du focus
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectMention(index);
+                  }}
+                  onMouseEnter={() => setActiveSuggestion(index)}
+                >
+                  <UserAvatar uid={candidate.uid} fallbackName={candidate.displayName} size={24} />
+                  <span>{candidate.displayName}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : (
         <div className="editor-preview" style={{ minHeight: `${rows * 1.6 + 1.5}rem` }}>
           {value.trim() ? (
@@ -250,6 +396,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         ) : (
           <span className="editor-hint">
             Markdown pris en charge : **gras**, `code`, [lien](url), ```bloc de code```
+            {mentionCandidates.length > 0 && ", @ pour mentionner"}
           </span>
         )}
         {maxLength && (
