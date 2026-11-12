@@ -1,12 +1,16 @@
 import React from "react";
 import type { Ticket, TicketStatus } from "../types/ticket";
 import "./TicketCard.scss";
+// Icônes vectorielles Lucide, alignées sur la charte Black & Gold
+import { Pencil, Trash2 } from "lucide-react";
 
 interface TicketCardProps {
   ticket: Ticket;
   currentUserId?: string;
   onUpdateStatus?: (ticketId: string, newStatus: TicketStatus) => void;
   onDelete?: (ticketId: string) => void;
+  // Ouverture de la modale d'édition (auteur uniquement)
+  onEdit?: (ticket: Ticket) => void;
 }
 
 // Libellés conviviaux pour les statuts
@@ -29,6 +33,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   currentUserId,
   onUpdateStatus,
   onDelete,
+  onEdit,
 }) => {
   const isAuthor = currentUserId && ticket.authorId === currentUserId;
 
@@ -116,16 +121,35 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           </select>
         </div>
 
-        {/* Bouton de suppression réservé à l'auteur */}
-        {isAuthor && onDelete && (
-          <button
-            type="button"
-            className="delete-ticket-btn"
-            onClick={handleDeleteClick}
-            title="Supprimer mon ticket"
-          >
-            Supprimer le ticket
-          </button>
+        {/* Actions réservées à l'auteur : modification et suppression */}
+        {isAuthor && (onEdit || onDelete) && (
+          <div className="author-actions">
+            {onEdit && (
+              <button
+                type="button"
+                className="edit-ticket-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(ticket);
+                }}
+                title="Modifier mon ticket"
+                aria-label="Modifier mon ticket"
+              >
+                <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                className="delete-ticket-btn"
+                onClick={handleDeleteClick}
+                title="Supprimer mon ticket"
+                aria-label="Supprimer mon ticket"
+              >
+                <Trash2 className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         )}
       </div>
     </article>

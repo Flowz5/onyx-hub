@@ -10,6 +10,10 @@ interface CreatePostModalProps {
   // Enregistrement asynchrone : la promesse est rejetée en cas d'échec Firestore
   onSubmit: (data: NewPostFormData) => Promise<void>;
   suggestedTags?: string[];
+  // Mode d'utilisation : création ou édition d'un élément existant
+  mode?: "create" | "edit";
+  // Valeurs initiales du formulaire en mode édition
+  initialData?: NewPostFormData | null;
 }
 
 const DEFAULT_SUGGESTIONS = ["Question", "Ressource", "Annonce", "Discussion", "Projet"];
@@ -19,7 +23,10 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   onClose,
   onSubmit,
   suggestedTags = DEFAULT_SUGGESTIONS,
+  mode = "create",
+  initialData = null,
 }) => {
+  const isEditMode = mode === "edit";
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>(["Discussion"]);
@@ -30,14 +37,14 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setTitle("");
-      setContent("");
-      setSelectedTags(["Discussion"]);
+      setTitle(initialData?.title ?? "");
+      setContent(initialData?.content ?? "");
+      setSelectedTags(initialData?.tags ?? ["Discussion"]);
       setCustomTagInput("");
       setErrorMessage(null);
       setIsSubmitting(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -128,9 +135,17 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
       >
         <div className="modal-header">
           <div className="header-title-area">
-            <span className="modal-badge">NOUVELLE PUBLICATION</span>
-            <h2 id="modal-post-title">Créer un post de discussion</h2>
-            <p>Partagez une astuce, une question de cours ou une ressource utile.</p>
+            <span className="modal-badge">
+              {isEditMode ? "MODIFICATION" : "NOUVELLE PUBLICATION"}
+            </span>
+            <h2 id="modal-post-title">
+              {isEditMode ? "Modifier mon post" : "Créer un post de discussion"}
+            </h2>
+            <p>
+              {isEditMode
+                ? "Corrigez le titre, le contenu ou les tags de votre publication."
+                : "Partagez une astuce, une question de cours ou une ressource utile."}
+            </p>
           </div>
           <button
             type="button"
@@ -255,7 +270,11 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
               Annuler
             </button>
             <button type="submit" className="submit-create-btn" disabled={isSubmitting}>
-              {isSubmitting ? "Publication..." : "Publier le post"}
+              {isSubmitting
+                ? "Enregistrement..."
+                : isEditMode
+                  ? "Enregistrer les modifications"
+                  : "Publier le post"}
             </button>
           </div>
         </form>

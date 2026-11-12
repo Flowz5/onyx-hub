@@ -14,12 +14,14 @@ import type { Ticket, NewTicketFormData, TicketStatus } from "../types/ticket";
 import { getChannelById, updateChannelMembers } from "../services/channelService";
 import {
   createPostInFirestore,
+  updatePostInFirestore,
   deletePostFromFirestore,
   togglePostUpvote,
   subscribeToChannelPosts,
 } from "../services/postService";
 import {
   createTicketInFirestore,
+  updateTicketInFirestore,
   updateTicketStatusInFirestore,
   deleteTicketFromFirestore,
   subscribeToChannelTickets,
@@ -55,6 +57,10 @@ export const ChannelDetailPage: React.FC = () => {
   // États des modales de création
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const [isCreateTicketModalOpen, setIsCreateTicketModalOpen] = useState(false);
+  // Post ou ticket en cours d'édition (null en mode création)
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+
   // Modale de gestion des membres (canal privé, créateur uniquement)
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
 
@@ -159,32 +165,86 @@ export const ChannelDetailPage: React.FC = () => {
     });
   }, [tickets, searchQuery, ticketStatusFilter, selectedTag]);
 
-  // Actions de création : l'erreur est relayée à la modale, qui l'affiche à l'utilisateur.
-  // Le nouvel élément apparaît ensuite dans le flux via l'écoute temps réel.
-  const handleCreatePostSubmit = async (data: NewPostFormData) => {
+  // Valeurs initiales des modales en mode édition (références stables)
+  const editingPostData = useMemo<NewPostFormData | null>(
+    () =>
+      editingPost
+        ? { title: editingPost.title, content: editingPost.content, tags: editingPost.tags }
+        : null,
+    [editingPost]
+  );
+
+  const editingTicketData = useMemo<NewTicketFormData | null>(
+    () =>
+      editingTicket
+        ? {
+            title: editingTicket.title,
+            description: editingTicket.description,
+            priority: editingTicket.priority,
+            tags: editingTicket.tags,
+          }
+        : null,
+    [editingTicket]
+  );
+
+  // Ouverture des modales en mode édition
+  const handleEditPost = (post: Post) => {
+    setEditingPost(post);
+    setIsCreatePostModalOpen(true);
+  };
+
+  const handleEditTicket = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    setIsCreateTicketModalOpen(true);
+  };
+
+  // Fermeture des modales et sortie du mode édition
+  const closePostModal = () => {
+    setIsCreatePostModalOpen(false);
+    setEditingPost(null);
+  };
+
+  const closeTicketModal = () => {
+    setIsCreateTicketModalOpen(false);
+    setEditingTicket(null);
+  };
+
+  // Enregistrement d'un post : création ou modification selon le mode de la modale.
+  // L'erreur est relayée à la modale, qui l'affiche à l'utilisateur ;
+  // le flux est ensuite actualisé par l'écoute temps réel.
+  const handlePostModalSubmit = async (data: NewPostFormData) => {
     if (!channelId || !user) {
       throw new Error("Utilisateur ou canal introuvable.");
     }
     try {
-      await createPostInFirestore(channelId, data, user);
-      setIsCreatePostModalOpen(false);
-      setActiveTab("posts");
+      if (editingPost) {
+        await updatePostInFirestore(editingPost.id, data);
+      } else {
+        await createPostInFirestore(channelId, data, user);
+        setActiveTab("posts");
+      }
+      closePostModal();
     } catch (err) {
-      console.error("Erreur lors de la création du post :", err);
+      console.error("Erreur lors de l'enregistrement du post :", err);
       throw err;
     }
   };
 
-  const handleCreateTicketSubmit = async (data: NewTicketFormData) => {
+  // Enregistrement d'un ticket : création ou modification selon le mode de la modale
+  const handleTicketModalSubmit = async (data: NewTicketFormData) => {
     if (!channelId || !user) {
       throw new Error("Utilisateur ou canal introuvable.");
     }
     try {
-      await createTicketInFirestore(channelId, data, user);
-      setIsCreateTicketModalOpen(false);
-      setActiveTab("tickets");
+      if (editingTicket) {
+        await updateTicketInFirestore(editingTicket.id, data);
+      } else {
+        await createTicketInFirestore(channelId, data, user);
+        setActiveTab("tickets");
+      }
+      closeTicketModal();
     } catch (err) {
-      console.error("Erreur lors de l'ouverture du ticket :", err);
+      console.error("Erreur lors de l'enregistrement du ticket :", err);
       throw err;
     }
   };
@@ -407,6 +467,7 @@ export const ChannelDetailPage: React.FC = () => {
                     currentUserId={user?.uid}
                     onUpvote={handleUpvotePost}
                     onDelete={handleDeletePost}
+                    onEdit={handleEditPost}
                   />
                 ))}
               </div>
@@ -442,6 +503,7 @@ export const ChannelDetailPage: React.FC = () => {
                     currentUserId={user?.uid}
                     onUpdateStatus={handleUpdateTicketStatus}
                     onDelete={handleDeleteTicket}
+                    onEdit={handleEditTicket}
                   />
                 ))}
               </div>
@@ -452,15 +514,19 @@ export const ChannelDetailPage: React.FC = () => {
         {/* Modales de création */}
         <CreatePostModal
           isOpen={isCreatePostModalOpen}
-          onClose={() => setIsCreatePostModalOpen(false)}
-          onSubmit={handleCreatePostSubmit}
+          onClose={closePostModal}
+          onSubmit={handlePostModalSubmit}
+          mode={editingPost ? "edit" : "create"}
+          initialData={editingPostData}
           suggestedTags={channel?.tags}
         />
 
         <CreateTicketModal
           isOpen={isCreateTicketModalOpen}
-          onClose={() => setIsCreateTicketModalOpen(false)}
-          onSubmit={handleCreateTicketSubmit}
+          onClose={closeTicketModal}
+          onSubmit={handleTicketModalSubmit}
+          mode={editingTicket ? "edit" : "create"}
+          initialData={editingTicketData}
           suggestedTags={channel?.tags}
         />
 

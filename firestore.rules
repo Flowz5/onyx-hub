@@ -187,6 +187,27 @@ service cloud.firestore {
                && request.resource.data.upvotesCount == resource.data.upvotesCount - 1));
     }
 
+    // Validates an author edit of a post: only title, content and tags may change
+    function isValidPostEdit() {
+      let data = request.resource.data;
+      return isOwner(resource.data.authorId)
+          && data.diff(resource.data).affectedKeys().hasOnly(['title', 'content', 'tags'])
+          && data.title is string && data.title.size() >= 4 && data.title.size() <= 120
+          && data.content is string && data.content.size() > 0 && data.content.size() <= 5000
+          && areValidFeedTags(data.tags);
+    }
+
+    // Validates an author edit of a ticket: subject, description, priority and tags
+    function isValidTicketEdit() {
+      let data = request.resource.data;
+      return isOwner(resource.data.authorId)
+          && data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'priority', 'tags'])
+          && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
+          && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
+          && data.priority in ['low', 'medium', 'high']
+          && areValidFeedTags(data.tags);
+    }
+
     // Validates a brand new ticket (schema, bounds, initial status, server timestamp)
     function isValidNewTicket(data) {
       return data.keys().hasAll([
@@ -220,9 +241,10 @@ service cloud.firestore {
                     && isOwner(request.resource.data.authorId)
                     && isValidNewPost(request.resource.data);
 
-      // Update: restricted to the upvote toggle of the calling user.
+      // Update: upvote toggle of the calling user, or content edit by the author.
       allow update: if isAuthenticated()
-                    && isValidUpvoteToggle();
+                    && canAccessChannel(resource.data.channelId)
+                    && (isValidUpvoteToggle() || isValidPostEdit());
 
       allow delete: if isAuthenticated()
                     && isOwner(resource.data.authorId);
@@ -240,10 +262,12 @@ service cloud.firestore {
                     && isOwner(request.resource.data.authorId)
                     && isValidNewTicket(request.resource.data);
 
-      // Update: any member may move the status forward or back, nothing else.
+      // Update: any channel member may change the status; the author may also edit the content.
       allow update: if isAuthenticated()
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-                    && request.resource.data.status in ['open', 'in_progress', 'resolved'];
+                    && canAccessChannel(resource.data.channelId)
+                    && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                         && request.resource.data.status in ['open', 'in_progress', 'resolved'])
+                        || isValidTicketEdit());
 
       allow delete: if isAuthenticated()
                     && isOwner(resource.data.authorId);
