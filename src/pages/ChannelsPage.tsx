@@ -8,6 +8,7 @@ import { CreateChannelModal } from "../components/CreateChannelModal";
 import type { Channel, NewChannelFormData } from "../types/channel";
 import {
   createChannelInFirestore,
+  updateChannelInFirestore,
   deleteChannelFromFirestore,
   subscribeToChannels,
 } from "../services/channelService";
@@ -22,7 +23,6 @@ const DEFAULT_TAGS: string[] = [
   "Cybersécurité",
   "Réseaux & Système",
   "Bases de Données",
-  "Maths & Algo",
   "Général",
 ];
 
@@ -42,6 +42,9 @@ export const ChannelsPage: React.FC = () => {
 
   // État d'ouverture de la modale de création de canal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Canal en cours d'édition (null en mode création)
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
 
   // État de chargement initial des données Firestore
   const [isLoading, setIsLoading] = useState(true);
@@ -71,13 +74,19 @@ export const ChannelsPage: React.FC = () => {
     return () => unsubscribe();
   }, [userId, userEmail]);
 
-  // Agrégation dynamique de tous les tags existants (par défaut + custom créés)
+  // Agrégation des tags triés par importance : "Tous", puis les tags par défaut,
+  // puis les tags personnalisés par nombre de canaux les utilisant (décroissant)
   const availableTags = useMemo(() => {
-    const set = new Set<string>(DEFAULT_TAGS);
+    const usage = new Map<string, number>();
     channels.forEach((channel) => {
-      channel.tags.forEach((tag) => set.add(tag));
+      channel.tags.forEach((tag) => usage.set(tag, (usage.get(tag) || 0) + 1));
     });
-    return Array.from(set);
+
+    const customTags = Array.from(usage.keys())
+      .filter((tag) => !DEFAULT_TAGS.includes(tag))
+      .sort((a, b) => (usage.get(b) || 0) - (usage.get(a) || 0) || a.localeCompare(b, "fr"));
+
+    return [...DEFAULT_TAGS, ...customTags];
   }, [channels]);
 
   // Nombre de canaux créés par l'utilisateur connecté
@@ -137,15 +146,49 @@ export const ChannelsPage: React.FC = () => {
     setFilterScope("all");
   };
 
-  // Enregistrement d'un nouveau canal dans Firestore suite à la soumission de la modale
-  const handleCreateChannelSubmit = async (data: NewChannelFormData) => {
-    if (!user) return;
+  // Ouverture de la modale en mode édition pour un canal créé par l'utilisateur
+  const handleEditChannel = (channel: Channel) => {
+    setEditingChannel(channel);
+    setIsCreateModalOpen(true);
+  };
+
+  // Fermeture de la modale et sortie du mode édition
+  const handleCloseChannelModal = () => {
+    setIsCreateModalOpen(false);
+    setEditingChannel(null);
+  };
+
+  // Valeurs initiales du formulaire en mode édition (référence stable pour la modale)
+  const editingInitialData = useMemo<NewChannelFormData | null>(
+    () =>
+      editingChannel
+        ? {
+            name: editingChannel.name,
+            description: editingChannel.description,
+            tags: editingChannel.tags,
+            visibility: editingChannel.visibility,
+            memberEmails: editingChannel.memberEmails,
+          }
+        : null,
+    [editingChannel]
+  );
+
+  // Enregistrement du canal : création ou mise à jour selon le mode de la modale.
+  // L'erreur est relayée à la modale, qui l'affiche à l'utilisateur.
+  const handleChannelModalSubmit = async (data: NewChannelFormData) => {
+    if (!user) {
+      throw new Error("Utilisateur non connecté.");
+    }
     try {
-      await createChannelInFirestore(data, user);
-      setIsCreateModalOpen(false);
+      if (editingChannel) {
+        await updateChannelInFirestore(editingChannel.id, data);
+      } else {
+        await createChannelInFirestore(data, user);
+      }
+      handleCloseChannelModal();
     } catch (error) {
-      console.error("Erreur lors de la création du canal dans Firestore :", error);
-      alert("Une erreur est survenue lors de la création du canal.");
+      console.error("Erreur lors de l'enregistrement du canal dans Firestore :", error);
+      throw error;
     }
   };
 
@@ -292,6 +335,7 @@ export const ChannelsPage: React.FC = () => {
                 currentUserEmail={user?.email || ""}
                 onSelectChannel={handleSelectChannel}
                 onDeleteChannel={handleDeleteChannel}
+                onEditChannel={handleEditChannel}
               />
             ))}
           </div>
@@ -300,9 +344,11 @@ export const ChannelsPage: React.FC = () => {
         {/* Modale interactive de création de canal */}
         <CreateChannelModal
           isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-          onSubmit={handleCreateChannelSubmit}
+          onClose={handleCloseChannelModal}
+          onSubmit={handleChannelModalSubmit}
           currentUserEmail={user?.email}
+          mode={editingChannel ? "edit" : "create"}
+          initialData={editingInitialData}
         />
       </main>
     </div>

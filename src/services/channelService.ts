@@ -74,6 +74,22 @@ export const createChannelInFirestore = async (
   return docRef.id;
 };
 
+// Édition des paramètres d'un canal par son créateur (nom, description, tags, visibilité, membres).
+// Le passage en public vide la liste des invitations, devenue sans objet.
+export const updateChannelInFirestore = async (
+  channelId: string,
+  formData: NewChannelFormData
+): Promise<void> => {
+  await updateDoc(doc(db, CHANNELS_COLLECTION, channelId), {
+    name: formData.name,
+    description: formData.description,
+    tags: formData.tags,
+    visibility: formData.visibility,
+    memberEmails:
+      formData.visibility === "private" ? cleanMemberEmails(formData.memberEmails) : [],
+  });
+};
+
 // Mise à jour de la liste des membres invités d'un canal privé (réservée au créateur)
 export const updateChannelMembers = async (
   channelId: string,
