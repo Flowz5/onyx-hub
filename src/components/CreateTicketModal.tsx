@@ -10,6 +10,10 @@ interface CreateTicketModalProps {
   // Enregistrement asynchrone : la promesse est rejetée en cas d'échec Firestore
   onSubmit: (data: NewTicketFormData) => Promise<void>;
   suggestedTags?: string[];
+  // Mode d'utilisation : création ou édition d'un élément existant
+  mode?: "create" | "edit";
+  // Valeurs initiales du formulaire en mode édition
+  initialData?: NewTicketFormData | null;
 }
 
 const DEFAULT_TICKET_TAGS = ["Bug", "Exercice", "Compréhension", "Installation", "Examen"];
@@ -19,7 +23,10 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
   onClose,
   onSubmit,
   suggestedTags = DEFAULT_TICKET_TAGS,
+  mode = "create",
+  initialData = null,
 }) => {
+  const isEditMode = mode === "edit";
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<TicketPriority>("medium");
@@ -31,15 +38,15 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setTitle("");
-      setDescription("");
-      setPriority("medium");
-      setSelectedTags(["Exercice"]);
+      setTitle(initialData?.title ?? "");
+      setDescription(initialData?.description ?? "");
+      setPriority(initialData?.priority ?? "medium");
+      setSelectedTags(initialData?.tags ?? ["Exercice"]);
       setCustomTagInput("");
       setErrorMessage(null);
       setIsSubmitting(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -131,9 +138,17 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
       >
         <div className="modal-header">
           <div className="header-title-area">
-            <span className="modal-badge ticket">DEMANDE D'AIDE</span>
-            <h2 id="modal-ticket-title">Ouvrir un ticket d'assistance</h2>
-            <p>Décrivez votre problème technique ou de cours pour obtenir de l'aide.</p>
+            <span className="modal-badge ticket">
+              {isEditMode ? "MODIFICATION" : "DEMANDE D'AIDE"}
+            </span>
+            <h2 id="modal-ticket-title">
+              {isEditMode ? "Modifier mon ticket" : "Ouvrir un ticket d'assistance"}
+            </h2>
+            <p>
+              {isEditMode
+                ? "Précisez le sujet, la description, la priorité ou les tags de votre demande."
+                : "Décrivez votre problème technique ou de cours pour obtenir de l'aide."}
+            </p>
           </div>
           <button
             type="button"
@@ -288,7 +303,11 @@ export const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
               Annuler
             </button>
             <button type="submit" className="submit-create-btn" disabled={isSubmitting}>
-              {isSubmitting ? "Ouverture..." : "Ouvrir le ticket"}
+              {isSubmitting
+                ? "Enregistrement..."
+                : isEditMode
+                  ? "Enregistrer les modifications"
+                  : "Ouvrir le ticket"}
             </button>
           </div>
         </form>
