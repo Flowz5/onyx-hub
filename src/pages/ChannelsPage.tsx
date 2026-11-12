@@ -50,9 +50,14 @@ export const ChannelsPage: React.FC = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
 
   // Écoute en temps réel des canaux depuis la base de données Firestore
+  // Seuls les canaux publics, créés par l'utilisateur ou partagés avec lui sont récupérés
+  const userId = user?.uid;
+  const userEmail = user?.email;
   useEffect(() => {
+    if (!userId) return;
     setIsLoading(true);
     const unsubscribe = subscribeToChannels(
+      { uid: userId, email: userEmail },
       (firestoreChannels) => {
         setChannels(firestoreChannels);
         setIsLoading(false);
@@ -64,7 +69,7 @@ export const ChannelsPage: React.FC = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [userId, userEmail]);
 
   // Agrégation dynamique de tous les tags existants (par défaut + custom créés)
   const availableTags = useMemo(() => {
@@ -297,6 +302,7 @@ export const ChannelsPage: React.FC = () => {
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onSubmit={handleCreateChannelSubmit}
+          currentUserEmail={user?.email}
         />
       </main>
     </div>
