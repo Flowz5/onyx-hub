@@ -313,3 +313,69 @@
     }
   }
 }
+
+// =====================================================================
+// ADAPTATION À LA HAUTEUR DE L'ÉCRAN
+// La modale ne dépasse jamais la fenêtre : l'en-tête reste fixe,
+// le formulaire défile et les boutons d'action restent visibles en bas.
+// =====================================================================
+
+.create-post-overlay {
+  overflow: hidden;
+
+  @media (max-width: 600px) {
+    padding: 0.75rem;
+  }
+}
+
+.create-post-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 3rem);
+  max-height: calc(100dvh - 3rem);
+  overflow: hidden;
+
+  @media (max-width: 600px) {
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  // En-tête et bandeau d'erreur conservent leur hauteur
+  > .modal-header,
+  > .modal-error-banner {
+    flex-shrink: 0;
+  }
+
+  // Zone de formulaire défilante
+  > .modal-form {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    // Décalage de la barre de défilement pour ne pas coller au contenu
+    margin-right: -0.85rem;
+    padding-right: 0.85rem;
+
+    // Barre de défilement fine aux couleurs Onyx
+    scrollbar-width: thin;
+    scrollbar-color: rgba(252, 163, 17, 0.45) transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(252, 163, 17, 0.45);
+      border-radius: 50px;
+    }
+
+    // Boutons d'action toujours visibles en bas de la zone défilante
+    .modal-actions-footer {
+      position: sticky;
+      bottom: 0;
+      z-index: 1;
+      margin-top: 0.75rem;
+      padding-bottom: 0.25rem;
+      background: #0B1324;
+    }
+  }
+}
