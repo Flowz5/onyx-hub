@@ -113,6 +113,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           {ticket.repliesCount > 0
             ? `${ticket.repliesCount} réponse${ticket.repliesCount > 1 ? "s" : ""}`
             : "Répondre"}
+          {/* Indication d'une solution retenue */}
+          {ticket.solutionReplyId && <span className="solution-flag">· Solution trouvée</span>}
           <ChevronDown className="onyx-icon chevron" size={14} strokeWidth={2} aria-hidden="true" />
         </button>
 
@@ -177,6 +179,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           ticketId={ticket.id}
           ticketAuthorId={ticket.authorId}
           isResolved={ticket.status === "resolved"}
+          solutionReplyId={ticket.solutionReplyId}
         />
       )}
     </article>

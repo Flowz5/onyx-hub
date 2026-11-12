@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./TicketReplies.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { BadgeCheck, CircleAlert, Send, Trash2 } from "lucide-react";
+import { BadgeCheck, CircleAlert, CircleCheckBig, Send, Trash2, Undo2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { MAX_REPLY_LENGTH, type TicketReply } from "../types/ticket";
 import {
   addTicketReply,
   deleteTicketReply,
+  setTicketSolution,
   subscribeToTicketReplies,
 } from "../services/ticketService";
 
@@ -15,6 +16,8 @@ interface TicketRepliesProps {
   // Auteur du ticket, mis en évidence dans le fil de réponses
   ticketAuthorId: string;
   isResolved: boolean;
+  // Réponse retenue comme solution (null si aucune)
+  solutionReplyId: string | null;
 }
 
 // Fil de réponses d'un ticket d'aide avec formulaire de réponse
@@ -22,8 +25,11 @@ export const TicketReplies: React.FC<TicketRepliesProps> = ({
   ticketId,
   ticketAuthorId,
   isResolved,
+  solutionReplyId,
 }) => {
   const { user } = useAuth();
+  // Seul l'auteur du ticket peut désigner la solution
+  const canChooseSolution = user?.uid === ticketAuthorId;
 
   const [replies, setReplies] = useState<TicketReply[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +72,24 @@ export const TicketReplies: React.FC<TicketRepliesProps> = ({
     }
   };
 
+  // Réponses ordonnées : la solution est épinglée en tête du fil
+  const orderedReplies = useMemo(() => {
+    const solution = replies.find((reply) => reply.id === solutionReplyId);
+    if (!solution) return replies;
+    return [solution, ...replies.filter((reply) => reply.id !== solutionReplyId)];
+  }, [replies, solutionReplyId]);
+
+  // Désignation ou retrait de la solution par l'auteur du ticket
+  const handleToggleSolution = async (replyId: string) => {
+    const nextSolution = replyId === solutionReplyId ? null : replyId;
+    try {
+      await setTicketSolution(ticketId, nextSolution);
+    } catch (error) {
+      console.error("Erreur lors du marquage de la solution :", error);
+      setErrorMessage("Impossible de mettre à jour la solution de ce ticket.");
+    }
+  };
+
   // Suppression d'une réponse par son auteur, après confirmation
   const handleDelete = async (replyId: string) => {
     if (!window.confirm("Voulez-vous supprimer cette réponse ?")) return;
@@ -97,11 +121,22 @@ export const TicketReplies: React.FC<TicketRepliesProps> = ({
         </p>
       ) : (
         <ul className="replies-list">
-          {replies.map((reply) => {
+          {orderedReplies.map((reply) => {
             const isTicketAuthor = reply.authorId === ticketAuthorId;
             const isMine = user?.uid === reply.authorId;
+            const isSolution = reply.id === solutionReplyId;
             return (
-              <li key={reply.id} className={`reply-item ${isTicketAuthor ? "from-author" : ""}`}>
+              <li
+                key={reply.id}
+                className={`reply-item ${isTicketAuthor ? "from-author" : ""} ${isSolution ? "is-solution" : ""}`}
+              >
+                {/* Bandeau de la réponse retenue comme solution */}
+                {isSolution && (
+                  <span className="solution-banner">
+                    <CircleCheckBig className="onyx-icon onyx-icon--leading" size={14} strokeWidth={2} aria-hidden="true" />
+                    Solution retenue par l'auteur
+                  </span>
+                )}
                 <div className="reply-meta">
                   <strong className="reply-author">{reply.authorName}</strong>
                   {isTicketAuthor && (
@@ -126,6 +161,27 @@ export const TicketReplies: React.FC<TicketRepliesProps> = ({
                   )}
                 </div>
                 <p className="reply-content">{reply.content}</p>
+
+                {/* Action de l'auteur du ticket : marquer ou retirer la solution */}
+                {canChooseSolution && (
+                  <button
+                    type="button"
+                    className={`solution-toggle-btn ${isSolution ? "active" : ""}`}
+                    onClick={() => handleToggleSolution(reply.id)}
+                  >
+                    {isSolution ? (
+                      <>
+                        <Undo2 className="onyx-icon onyx-icon--leading" size={13} strokeWidth={2} aria-hidden="true" />
+                        Retirer la solution
+                      </>
+                    ) : (
+                      <>
+                        <CircleCheckBig className="onyx-icon onyx-icon--leading" size={13} strokeWidth={2} aria-hidden="true" />
+                        Marquer comme solution
+                      </>
+                    )}
+                  </button>
+                )}
               </li>
             );
           })}

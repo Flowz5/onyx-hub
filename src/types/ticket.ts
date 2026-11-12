@@ -18,6 +18,8 @@ export interface Ticket {
   authorName: string;
   createdAt: string;
   repliesCount: number;
+  // Identifiant de la réponse retenue comme solution par l'auteur (null si aucune)
+  solutionReplyId: string | null;
 }
 
 // Données du formulaire de création d'un ticket

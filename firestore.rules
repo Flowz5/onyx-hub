@@ -208,6 +208,18 @@ service cloud.firestore {
           && areValidFeedTags(data.tags);
     }
 
+    // Validates the selection (or removal) of the solution reply by the ticket author.
+    // The chosen reply must exist in the ticket's replies; marking it may also resolve the ticket.
+    function isValidSolutionChange(ticketId) {
+      let data = request.resource.data;
+      return isOwner(resource.data.authorId)
+          && data.diff(resource.data).affectedKeys().hasOnly(['solutionReplyId', 'status'])
+          && data.status in ['open', 'in_progress', 'resolved']
+          && (data.solutionReplyId == null
+              || (data.solutionReplyId is string
+                  && exists(/databases/$(database)/documents/tickets/$(ticketId)/replies/$(data.solutionReplyId))));
+    }
+
     // Validates a brand new ticket (schema, bounds, initial status, server timestamp)
     function isValidNewTicket(data) {
       return data.keys().hasAll([
@@ -216,8 +228,9 @@ service cloud.firestore {
              ])
           && data.keys().hasOnly([
                'channelId', 'title', 'description', 'status', 'priority', 'tags',
-               'authorId', 'authorName', 'createdAt', 'repliesCount'
+               'authorId', 'authorName', 'createdAt', 'repliesCount', 'solutionReplyId'
              ])
+          && (!('solutionReplyId' in data) || data.solutionReplyId == null)
           && canAccessChannel(data.channelId)
           && data.title is string && data.title.size() >= 5 && data.title.size() <= 120
           && data.description is string && data.description.size() > 0 && data.description.size() <= 5000
@@ -269,7 +282,8 @@ service cloud.firestore {
                     && ((isOwner(resource.data.authorId)
                          && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
                               && request.resource.data.status in ['open', 'in_progress', 'resolved'])
-                             || isValidTicketEdit()))
+                             || isValidTicketEdit()
+                             || isValidSolutionChange(ticketId)))
                         || isCounterStep('repliesCount'));
 
       allow delete: if isAuthenticated()
