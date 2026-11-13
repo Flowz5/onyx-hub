@@ -24,6 +24,14 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Compte administrateur de la plateforme : modérateur de tous les canaux,
+    // accès aux canaux privés (adresse identique à SUPER_ADMIN_EMAIL côté client)
+    function isSuperAdmin() {
+      return isAuthenticated()
+          && request.auth.token.get('email', '') is string
+          && request.auth.token.get('email', '').lower() == 'le.dupont.pro@gmail.com';
+    }
+
     // -------------------------------------------------------------------------
     // Domain Validator Functions: Channels
     // -------------------------------------------------------------------------
@@ -46,13 +54,28 @@ service cloud.firestore {
     }
 
     // Checks whether the caller may access a channel document:
-    // public channel, channel creator, or e-mail listed among the invited members.
+    // public channel, channel creator, e-mail listed among the invited members, or administrator.
     function isChannelMember(channel) {
       return channel.visibility == 'public'
           || channel.creatorId == request.auth.uid
           || ('memberEmails' in channel
               && request.auth.token.email != null
-              && request.auth.token.email.lower() in channel.memberEmails);
+              && request.auth.token.email.lower() in channel.memberEmails)
+          || isSuperAdmin();
+    }
+
+    // Modérateurs d'un canal : son créateur et l'administrateur
+    // (suppression des posts, tickets, commentaires et réponses publiés dans le canal)
+    function isChannelModerator(channel) {
+      return channel.creatorId == request.auth.uid || isSuperAdmin();
+    }
+
+    // Même vérification, à partir de l'identifiant du canal
+    function canModerateChannel(channelId) {
+      return channelId is string
+          && channelId.size() > 0
+          && exists(/databases/$(database)/documents/channels/$(channelId))
+          && isChannelModerator(get(/databases/$(database)/documents/channels/$(channelId)).data);
     }
 
     // Same check, resolved from a channel identifier (used by posts and tickets)
@@ -115,6 +138,7 @@ service cloud.firestore {
       // Read: public channels, own channels, or private channels where the caller is invited.
       // Query Alignment: the client issues three separate queries (visibility == 'public',
       // creatorId == uid, memberEmails array-contains email) so that each one is provably allowed.
+      // L'administrateur ajoute une quatrième requête (visibility == 'private').
       allow read: if isAuthenticated() && isChannelMember(resource.data);
 
       // Create: Authenticated creator with valid schema, server-side timestamp, and initial 0 counters.
@@ -134,9 +158,9 @@ service cloud.firestore {
                         && isChannelMember(resource.data)
                         && (isCounterStep('postsCount') || isCounterStep('ticketsCount')));
 
-      // Delete: Only the channel creator can delete their channel.
+      // Delete: the channel creator, or the administrator.
       allow delete: if isAuthenticated()
-                    && isOwner(resource.data.creatorId);
+                    && (isOwner(resource.data.creatorId) || isSuperAdmin());
     }
 
     // -------------------------------------------------------------------------
@@ -296,8 +320,9 @@ service cloud.firestore {
                     && canAccessChannel(resource.data.channelId)
                     && (isValidUpvoteToggle() || isValidPostEdit() || isCounterStep('commentsCount'));
 
+      // Delete: the post author, or a moderator of its channel (creator or administrator)
       allow delete: if isAuthenticated()
-                    && isOwner(resource.data.authorId);
+                    && (isOwner(resource.data.authorId) || canModerateChannel(resource.data.channelId));
 
       // -----------------------------------------------------------------------
       // Subcollection: comments (Commentaires des membres du canal sur un post)
@@ -313,11 +338,13 @@ service cloud.firestore {
         allow create: if isAuthenticated() && canAccessPost() && isValidNewThreadMessage();
 
         // Comments are immutable, except for upvotes by other channel members.
-        // Delete: the comment author, or the post author (comments removed along with the post).
+        // Delete: the comment author, the post author (comments removed along with the post),
+        // or a moderator of the post's channel.
         allow update: if isAuthenticated() && canAccessPost() && isValidThreadMessageUpvoteToggle();
         allow delete: if isAuthenticated()
                       && (isOwner(resource.data.authorId)
-                          || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
+                          || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
+                          || canModerateChannel(get(/databases/$(database)/documents/posts/$(postId)).data.channelId));
       }
     }
 
@@ -346,8 +373,9 @@ service cloud.firestore {
                              || isValidSolutionChange(ticketId)))
                         || isCounterStep('repliesCount'));
 
+      // Delete: the ticket author, or a moderator of its channel (creator or administrator)
       allow delete: if isAuthenticated()
-                    && isOwner(resource.data.authorId);
+                    && (isOwner(resource.data.authorId) || canModerateChannel(resource.data.channelId));
 
       // -----------------------------------------------------------------------
       // Subcollection: replies (Réponses des membres du canal à un ticket)
@@ -363,11 +391,13 @@ service cloud.firestore {
         allow create: if isAuthenticated() && canAccessTicket() && isValidNewThreadMessage();
 
         // Replies are immutable, except for upvotes by other channel members.
-        // Delete: the reply author, or the ticket author (replies removed along with the ticket).
+        // Delete: the reply author, the ticket author (replies removed along with the ticket),
+        // or a moderator of the ticket's channel.
         allow update: if isAuthenticated() && canAccessTicket() && isValidThreadMessageUpvoteToggle();
         allow delete: if isAuthenticated()
                       && (isOwner(resource.data.authorId)
-                          || get(/databases/$(database)/documents/tickets/$(ticketId)).data.authorId == request.auth.uid);
+                          || get(/databases/$(database)/documents/tickets/$(ticketId)).data.authorId == request.auth.uid
+                          || canModerateChannel(get(/databases/$(database)/documents/tickets/$(ticketId)).data.channelId));
       }
     }
 
@@ -421,6 +451,24 @@ service cloud.firestore {
                && getAfter(ticketPath).data.get('solutionAuthorId', null) != userId));
     }
 
+    // Décrémentation du compteur de posts ou de tickets d'un étudiant dont le contenu
+    // est supprimé par un modérateur. lastModeratedContentId désigne ce contenu, qui doit
+    // appartenir à l'étudiant, relever d'un canal modéré par l'appelant et disparaître dans le même lot.
+    function isValidModeratedCounterStep(userId, field, parentCollection) {
+      let data = request.resource.data;
+      let contentPath = /databases/$(database)/documents/$(parentCollection)/$(data.lastModeratedContentId);
+      return data.diff(resource.data).affectedKeys().hasOnly([field, 'lastModeratedContentId'])
+          && data.lastModeratedContentId is string
+          && data.lastModeratedContentId.size() > 0
+          && data[field] is int
+          && data[field] >= 0
+          && data[field] == resource.data[field] - 1
+          && exists(contentPath)
+          && !existsAfter(contentPath)
+          && get(contentPath).data.authorId == userId
+          && canModerateChannel(get(contentPath).data.channelId);
+    }
+
     // -------------------------------------------------------------------------
     // Collection: users (Profils publics des étudiants)
     // -------------------------------------------------------------------------
@@ -433,13 +481,17 @@ service cloud.firestore {
       // Update (1): the owner edits their name, bio or photo.
       // Update (2): the owner's post or ticket counter shifts by one (batched with the content write).
       // Update (3): a ticket author credits or debits the author of a solution.
+      // Update (4): a channel moderator decrements the counter of the author of a deleted post or ticket.
       allow update: if (isOwner(userId)
                         && ((request.resource.data.diff(resource.data).affectedKeys()
                                .hasOnly(['displayName', 'bio', 'photoDataUrl'])
                              && isValidProfileFields(request.resource.data))
                             || isCounterStep('postsCount')
                             || isCounterStep('ticketsCount')))
-                    || (isAuthenticated() && isValidSolutionCounterChange(userId));
+                    || (isAuthenticated() && isValidSolutionCounterChange(userId))
+                    || (isAuthenticated()
+                        && (isValidModeratedCounterStep(userId, 'postsCount', 'posts')
+                            || isValidModeratedCounterStep(userId, 'ticketsCount', 'tickets')));
 
       // Profiles are never deleted from the client
       allow delete: if false;
@@ -557,10 +609,12 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /notifications/{notificationId} {
       // Read: the recipient (queries filter on recipientId), or the author of the action,
-      // who looks up their own notifications to remove them when deleting the content
+      // who looks up their own notifications to remove them when deleting the content.
+      // Un modérateur du canal les recherche aussi lors d'une suppression (requêtes filtrées sur channelId).
       allow read: if isAuthenticated()
                   && (resource.data.recipientId == request.auth.uid
-                      || resource.data.actorId == request.auth.uid);
+                      || resource.data.actorId == request.auth.uid
+                      || canModerateChannel(resource.data.channelId));
 
       // Create: written by the message author in the same batch as the message itself
       allow create: if isAuthenticated() && isValidNewNotification(request.resource.data);
@@ -571,10 +625,12 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
                     && request.resource.data.read == true;
 
-      // Delete: the recipient (clear, orphan notification) or the author of the deleted content
+      // Delete: the recipient (clear, orphan notification), the author of the deleted content,
+      // or a moderator of the channel removing the content
       allow delete: if isAuthenticated()
                     && (resource.data.recipientId == request.auth.uid
-                        || resource.data.actorId == request.auth.uid);
+                        || resource.data.actorId == request.auth.uid
+                        || canModerateChannel(resource.data.channelId));
     }
 
     // -------------------------------------------------------------------------
@@ -620,9 +676,9 @@ service cloud.firestore {
                     && request.resource.data.dataUrl.matches('^data:image/(webp|jpeg);base64,.+$')
                     && request.resource.data.createdAt == request.time;
 
-      // Images are immutable; only their owner may delete them
+      // Images are immutable; only their owner (or the administrator, when moderating) may delete them
       allow update: if false;
-      allow delete: if isAuthenticated() && isOwner(resource.data.ownerId);
+      allow delete: if isAuthenticated() && (isOwner(resource.data.ownerId) || isSuperAdmin());
     }
   }
 }

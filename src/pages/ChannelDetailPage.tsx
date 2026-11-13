@@ -34,6 +34,7 @@ import { AppTopbar } from "../components/AppTopbar";
 import { MentionProvider, useChannelMentionCandidates } from "../context/MentionContext";
 import { resolveMentionTargets } from "../types/mention";
 import { deleteReceivedNotification } from "../services/notificationService";
+import { canModerateChannel } from "../services/moderationService";
 
 // Page principale dédiée à la consultation intérieure d'un canal (Posts & Tickets)
 export const ChannelDetailPage: React.FC = () => {
@@ -85,6 +86,8 @@ export const ChannelDetailPage: React.FC = () => {
   // Le canal est accessible une fois chargé ; sinon il est inexistant ou réservé à ses membres
   const hasChannelAccess = Boolean(channel);
   const isChannelOwner = Boolean(channel && user && channel.creatorId === user.uid);
+  // Modération du canal : son créateur et le compte administrateur
+  const isModerator = canModerateChannel(channel, user);
 
   // 1. Chargement des informations du canal
   useEffect(() => {
@@ -524,6 +527,7 @@ export const ChannelDetailPage: React.FC = () => {
                       key={post.id}
                       post={post}
                       currentUserId={user?.uid}
+                      canModerate={isModerator}
                       onUpvote={handleUpvotePost}
                       onDelete={handleDeletePost}
                       onEdit={handleEditPost}
@@ -561,6 +565,7 @@ export const ChannelDetailPage: React.FC = () => {
                       key={ticket.id}
                       ticket={ticket}
                       currentUserId={user?.uid}
+                      canModerate={isModerator}
                       onUpdateStatus={handleUpdateTicketStatus}
                       onDelete={handleDeleteTicket}
                       onEdit={handleEditTicket}

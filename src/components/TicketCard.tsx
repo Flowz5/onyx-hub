@@ -14,6 +14,8 @@ interface TicketCardProps {
   onDelete?: (ticketId: string) => void;
   // Ouverture de la modale d'édition (auteur uniquement)
   onEdit?: (ticket: Ticket) => void;
+  // Modérateur du canal (créateur ou administrateur) : suppression des tickets et réponses
+  canModerate?: boolean;
   // Mise en avant depuis une notification : la carte défile à l'écran, avec son fil ouvert si besoin
   focus?: "card" | "thread" | null;
 }
@@ -39,9 +41,12 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   onUpdateStatus,
   onDelete,
   onEdit,
+  canModerate = false,
   focus = null,
 }) => {
-  const isAuthor = currentUserId && ticket.authorId === currentUserId;
+  const isAuthor = Boolean(currentUserId && ticket.authorId === currentUserId);
+  // Suppression ouverte à l'auteur et aux modérateurs du canal
+  const canDelete = isAuthor || canModerate;
   // Affichage du fil de réponses (chargé uniquement à l'ouverture)
   const [areRepliesOpen, setAreRepliesOpen] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
@@ -64,7 +69,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
     e.stopPropagation();
     if (onDelete) {
       const confirmDelete = window.confirm(
-        `Voulez-vous supprimer ce ticket d'aide "${ticket.title}" ?`
+        isAuthor
+          ? `Voulez-vous supprimer ce ticket d'aide "${ticket.title}" ?`
+          : `Modération : supprimer le ticket "${ticket.title}" de ${ticket.authorName} ?`
       );
       if (confirmDelete) {
         onDelete(ticket.id);
@@ -136,10 +143,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           <ChevronDown className="onyx-icon chevron" size={14} strokeWidth={2} aria-hidden="true" />
         </button>
 
-        {isAuthor && (
+        {canDelete && (
           <div className="author-controls">
             {/* Sélecteur de mise à jour d'état, réservé à l'auteur du ticket */}
-            {onUpdateStatus && (
+            {isAuthor && onUpdateStatus && (
               <div className="status-selector-wrapper">
                 <label htmlFor={`ticket-status-${ticket.id}`} className="status-selector-label">
                   Statut :
@@ -157,10 +164,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
               </div>
             )}
 
-            {/* Actions de l'auteur : modification et suppression */}
-            {(onEdit || onDelete) && (
+            {/* Actions : modification par l'auteur, suppression par l'auteur ou un modérateur */}
+            {((isAuthor && onEdit) || onDelete) && (
               <div className="author-actions">
-                {onEdit && (
+                {isAuthor && onEdit && (
                   <button
                     type="button"
                     className="edit-ticket-btn"
@@ -179,8 +186,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                     type="button"
                     className="delete-ticket-btn"
                     onClick={handleDeleteClick}
-                    title="Supprimer mon ticket"
-                    aria-label="Supprimer mon ticket"
+                    title={isAuthor ? "Supprimer mon ticket" : "Supprimer ce ticket (modération)"}
+                    aria-label={isAuthor ? "Supprimer mon ticket" : "Supprimer ce ticket (modération)"}
                   >
                     <Trash2 className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   </button>
@@ -202,6 +209,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           isResolved={ticket.status === "resolved"}
           solutionMessageId={ticket.solutionReplyId}
           solutionAuthorId={ticket.solutionAuthorId}
+          canModerate={canModerate}
         />
       )}
     </article>
