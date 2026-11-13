@@ -5,9 +5,11 @@
 // Ces vérifications ne servent qu'à l'affichage : les règles Firestore
 // (isSuperAdmin, isChannelModerator) restent la seule garantie de sécurité.
 // =====================================================================
-import { doc, getDoc, increment, type WriteBatch } from "firebase/firestore";
+import { doc, getDoc, increment, serverTimestamp, setDoc, type WriteBatch } from "firebase/firestore";
 import { db } from "./firebase";
+import { newNotificationRef } from "./notificationService";
 import { normalizeEmail, type Channel } from "../types/channel";
+import { MAX_WARNING_REASON_LENGTH } from "../types/notification";
 
 // Adresse e-mail du compte administrateur, à garder identique à celle de firestore.rules
 export const SUPER_ADMIN_EMAIL = "le.dupont.pro@gmail.com";
@@ -38,5 +40,41 @@ export const addModeratedCounterStep = async (
   batch.update(snapshot.ref, {
     [field]: increment(-1),
     lastModeratedContentId: contentId,
+  });
+};
+
+// Contenu visé par un avertissement : post ou ticket, éventuellement un message de son fil
+export interface WarningTarget {
+  kind: "posts" | "tickets";
+  parentId: string;
+  parentTitle: string;
+  channelId: string;
+  // Commentaire ou réponse visé ; null pour le post ou le ticket lui-même
+  messageId: string | null;
+  // Auteur du contenu, destinataire de l'avertissement
+  recipientId: string;
+}
+
+// Envoi d'un avertissement de modération à l'auteur d'un contenu, sous forme de notification.
+// Les règles Firestore vérifient que l'appelant modère le canal et que le destinataire est bien l'auteur.
+export const sendModerationWarning = async (
+  target: WarningTarget,
+  reason: string,
+  moderator: { uid: string; displayName?: string | null; email?: string | null }
+): Promise<void> => {
+  const trimmedReason = reason.trim().slice(0, MAX_WARNING_REASON_LENGTH);
+  if (!trimmedReason) throw new Error("Le motif de l'avertissement est obligatoire.");
+  await setDoc(newNotificationRef(), {
+    recipientId: target.recipientId,
+    actorId: moderator.uid,
+    actorName: moderator.displayName || moderator.email || "Modérateur",
+    type: target.kind === "posts" ? "post_warning" : "ticket_warning",
+    parentId: target.parentId,
+    messageId: target.messageId,
+    parentTitle: target.parentTitle,
+    channelId: target.channelId,
+    createdAt: serverTimestamp(),
+    read: false,
+    reason: trimmedReason,
   });
 };

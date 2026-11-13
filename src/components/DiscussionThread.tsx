@@ -5,6 +5,7 @@ import { ArrowBigUp, BadgeCheck, CircleAlert, CircleCheckBig, Send, Trash2, Undo
 import { useAuth } from "../context/AuthContext";
 import { RichContent } from "./RichContent";
 import { AuthorLink } from "./UserAvatar";
+import { WarnUserButton } from "./WarnUserButton";
 import { useMentionCandidates } from "../context/MentionContext";
 import { resolveMentionTargets } from "../types/mention";
 import { RichTextEditor } from "./RichTextEditor";
@@ -256,6 +257,23 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
                     >
                       <Trash2 className="onyx-icon" size={13} strokeWidth={2} aria-hidden="true" />
                     </button>
+                  )}
+
+                  {/* Avertissement de l'auteur du message par un modérateur du canal */}
+                  {canModerate && !isMine && (
+                    <WarnUserButton
+                      target={{
+                        kind,
+                        parentId,
+                        parentTitle,
+                        channelId,
+                        messageId: message.id,
+                        recipientId: message.authorId,
+                      }}
+                      recipientName={message.authorName}
+                      contentLabel={`son ${labels.noun}`}
+                      variant="compact"
+                    />
                   )}
                 </div>
                 <RichContent className="message-content" content={message.content} />
