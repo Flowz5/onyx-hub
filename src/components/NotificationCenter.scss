@@ -214,6 +214,14 @@
     color: rgba(255, 255, 255, 0.45);
   }
 
+  // Motif d'un avertissement de modération
+  .notification-reason {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: #FCD34D;
+    overflow-wrap: anywhere;
+  }
+
   .unread-dot {
     flex-shrink: 0;
     width: 8px;
@@ -253,6 +261,13 @@
     background: rgba(52, 211, 153, 0.12);
     border-color: rgba(52, 211, 153, 0.35);
     color: #34D399;
+  }
+
+  // Avertissement de modération : teinte ambrée
+  &.warnings {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #FBBF24;
   }
 }
 

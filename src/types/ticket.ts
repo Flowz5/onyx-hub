@@ -22,6 +22,8 @@ export interface Ticket {
   solutionReplyId: string | null;
   // Auteur de la réponse retenue, crédité d'une solution sur son profil (null si aucune ou ancienne solution)
   solutionAuthorId: string | null;
+  // Date d'épinglage par un modérateur du canal (null si le ticket n'est pas épinglé)
+  pinnedAt: string | null;
 }
 
 // Données du formulaire de création d'un ticket

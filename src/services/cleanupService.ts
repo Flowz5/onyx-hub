@@ -48,13 +48,19 @@ export const deleteRemovedImages = async (previousContent: string, nextContent: 
 };
 
 // Suppression des notifications générées par un étudiant pour un contenu
-// (toutes celles d'un post ou d'un ticket, ou seulement celles d'un message précis)
+// (toutes celles d'un post ou d'un ticket, ou seulement celles d'un message précis).
+// Le filtre sur le canal permet aux règles Firestore d'autoriser aussi la requête d'un modérateur.
 export const deleteActorNotifications = async (
   actorId: string,
   parentId: string,
+  channelId: string,
   messageId?: string
 ): Promise<void> => {
-  const constraints = [where("actorId", "==", actorId), where("parentId", "==", parentId)];
+  const constraints = [
+    where("actorId", "==", actorId),
+    where("parentId", "==", parentId),
+    where("channelId", "==", channelId),
+  ];
   if (messageId) constraints.push(where("messageId", "==", messageId));
   const snapshot = await getDocs(query(collection(db, NOTIFICATIONS_COLLECTION), ...constraints));
 
@@ -65,15 +71,17 @@ export const deleteActorNotifications = async (
   }
 };
 
-// Nettoyage complet après suppression d'un contenu par son auteur
+// Nettoyage complet après suppression d'un contenu par son auteur ou par un modérateur.
+// Les images d'un autre étudiant ne sont retirées que par l'administrateur (refus ignoré sinon).
 export const cleanupAfterDeletion = async (
   actorId: string,
   parentId: string,
+  channelId: string,
   contents: string[],
   messageId?: string
 ): Promise<void> => {
   const results = await Promise.allSettled([
-    deleteActorNotifications(actorId, parentId, messageId),
+    deleteActorNotifications(actorId, parentId, channelId, messageId),
     deleteOwnedImages(extractImageIds(...contents)),
   ]);
   results.forEach((result) => {

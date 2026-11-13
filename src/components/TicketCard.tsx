@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Ticket, TicketStatus } from "../types/ticket";
 import "./TicketCard.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { ChevronDown, MessageSquareReply, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, MessageSquareReply, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 import { DiscussionThread } from "./DiscussionThread";
 import { AuthorLink } from "./UserAvatar";
+import { WarnUserButton } from "./WarnUserButton";
 import { RichContent } from "./RichContent";
 
 interface TicketCardProps {
@@ -14,6 +15,10 @@ interface TicketCardProps {
   onDelete?: (ticketId: string) => void;
   // Ouverture de la modale d'édition (auteur uniquement)
   onEdit?: (ticket: Ticket) => void;
+  // Modérateur du canal (créateur ou administrateur) : suppression des tickets et réponses
+  canModerate?: boolean;
+  // Épinglage (ou désépinglage) du ticket en tête du canal, réservé aux modérateurs
+  onTogglePin?: (ticketId: string, pinned: boolean) => void;
   // Mise en avant depuis une notification : la carte défile à l'écran, avec son fil ouvert si besoin
   focus?: "card" | "thread" | null;
 }
@@ -39,9 +44,14 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   onUpdateStatus,
   onDelete,
   onEdit,
+  canModerate = false,
+  onTogglePin,
   focus = null,
 }) => {
-  const isAuthor = currentUserId && ticket.authorId === currentUserId;
+  const isPinned = Boolean(ticket.pinnedAt);
+  const isAuthor = Boolean(currentUserId && ticket.authorId === currentUserId);
+  // Suppression ouverte à l'auteur et aux modérateurs du canal
+  const canDelete = isAuthor || canModerate;
   // Affichage du fil de réponses (chargé uniquement à l'ouverture)
   const [areRepliesOpen, setAreRepliesOpen] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
@@ -64,7 +74,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
     e.stopPropagation();
     if (onDelete) {
       const confirmDelete = window.confirm(
-        `Voulez-vous supprimer ce ticket d'aide "${ticket.title}" ?`
+        isAuthor
+          ? `Voulez-vous supprimer ce ticket d'aide "${ticket.title}" ?`
+          : `Modération : supprimer le ticket "${ticket.title}" de ${ticket.authorName} ?`
       );
       if (confirmDelete) {
         onDelete(ticket.id);
@@ -75,11 +87,18 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   return (
     <article
       ref={cardRef}
-      className={`ticket-card-item status-${ticket.status} ${focus ? "is-focused" : ""}`}
+      className={`ticket-card-item status-${ticket.status} ${focus ? "is-focused" : ""} ${isPinned ? "is-pinned" : ""}`}
     >
       {/* En-tête du ticket avec statut et priorité */}
       <div className="ticket-card-header">
         <div className="status-priority-badges">
+          {/* Badge d'un ticket épinglé par un modérateur */}
+          {isPinned && (
+            <span className="pinned-badge">
+              <Pin className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
+              Épinglé
+            </span>
+          )}
           {/* Badge de statut */}
           <span className={`status-badge ${ticket.status}`}>
             <span className="dot" />
@@ -136,10 +155,10 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           <ChevronDown className="onyx-icon chevron" size={14} strokeWidth={2} aria-hidden="true" />
         </button>
 
-        {isAuthor && (
+        {canDelete && (
           <div className="author-controls">
             {/* Sélecteur de mise à jour d'état, réservé à l'auteur du ticket */}
-            {onUpdateStatus && (
+            {isAuthor && onUpdateStatus && (
               <div className="status-selector-wrapper">
                 <label htmlFor={`ticket-status-${ticket.id}`} className="status-selector-label">
                   Statut :
@@ -157,10 +176,30 @@ export const TicketCard: React.FC<TicketCardProps> = ({
               </div>
             )}
 
-            {/* Actions de l'auteur : modification et suppression */}
-            {(onEdit || onDelete) && (
+            {/* Actions : modification par l'auteur, suppression par l'auteur ou un modérateur */}
+            {((isAuthor && onEdit) || onDelete || canModerate) && (
               <div className="author-actions">
-                {onEdit && (
+                {/* Épinglage en tête du canal, réservé aux modérateurs */}
+                {canModerate && onTogglePin && (
+                  <button
+                    type="button"
+                    className={`pin-toggle-btn ${isPinned ? "is-pinned" : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePin(ticket.id, !isPinned);
+                    }}
+                    aria-pressed={isPinned}
+                    title={isPinned ? "Désépingler ce ticket" : "Épingler ce ticket en haut du canal"}
+                    aria-label={isPinned ? "Désépingler ce ticket" : "Épingler ce ticket en haut du canal"}
+                  >
+                    {isPinned ? (
+                      <PinOff className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <Pin className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+                {isAuthor && onEdit && (
                   <button
                     type="button"
                     className="edit-ticket-btn"
@@ -174,13 +213,28 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                     <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   </button>
                 )}
+                {/* Avertissement de l'auteur par un modérateur du canal */}
+                {canModerate && !isAuthor && (
+                  <WarnUserButton
+                    target={{
+                      kind: "tickets",
+                      parentId: ticket.id,
+                      parentTitle: ticket.title,
+                      channelId: ticket.channelId,
+                      messageId: null,
+                      recipientId: ticket.authorId,
+                    }}
+                    recipientName={ticket.authorName}
+                    contentLabel="son ticket"
+                  />
+                )}
                 {onDelete && (
                   <button
                     type="button"
                     className="delete-ticket-btn"
                     onClick={handleDeleteClick}
-                    title="Supprimer mon ticket"
-                    aria-label="Supprimer mon ticket"
+                    title={isAuthor ? "Supprimer mon ticket" : "Supprimer ce ticket (modération)"}
+                    aria-label={isAuthor ? "Supprimer mon ticket" : "Supprimer ce ticket (modération)"}
                   >
                     <Trash2 className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   </button>
@@ -202,6 +256,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           isResolved={ticket.status === "resolved"}
           solutionMessageId={ticket.solutionReplyId}
           solutionAuthorId={ticket.solutionAuthorId}
+          canModerate={canModerate}
         />
       )}
     </article>
