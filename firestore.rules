@@ -228,6 +228,14 @@ service cloud.firestore {
                && request.resource.data.upvotesCount == previousCount - 1));
     }
 
+    // Épinglage (pinnedAt = horodatage serveur) ou désépinglage (null) d'un post ou d'un ticket
+    // par un modérateur de son canal (créateur ou administrateur)
+    function isValidPinToggle() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinnedAt'])
+          && (request.resource.data.pinnedAt == null || request.resource.data.pinnedAt == request.time)
+          && canModerateChannel(resource.data.channelId);
+    }
+
     // Validates an author edit of a post: only title, content and tags may change
     function isValidPostEdit() {
       let data = request.resource.data;
@@ -315,10 +323,11 @@ service cloud.firestore {
                     && isValidNewPost(request.resource.data);
 
       // Update: upvote toggle of the calling user, content edit by the author,
-      // or commentsCount shifted by one (batched with a comment write).
+      // commentsCount shifted by one (batched with a comment write), or pin toggle by a moderator.
       allow update: if isAuthenticated()
                     && canAccessChannel(resource.data.channelId)
-                    && (isValidUpvoteToggle() || isValidPostEdit() || isCounterStep('commentsCount'));
+                    && (isValidUpvoteToggle() || isValidPostEdit() || isCounterStep('commentsCount')
+                        || isValidPinToggle());
 
       // Delete: the post author, or a moderator of its channel (creator or administrator)
       allow delete: if isAuthenticated()
@@ -364,6 +373,7 @@ service cloud.firestore {
 
       // Update (1): reserved to the ticket author (status change or content edit).
       // Update (2): any channel member may shift repliesCount by one (batched with a reply write).
+      // Update (3): a moderator of the channel pins or unpins the ticket.
       allow update: if isAuthenticated()
                     && canAccessChannel(resource.data.channelId)
                     && ((isOwner(resource.data.authorId)
@@ -371,7 +381,8 @@ service cloud.firestore {
                               && request.resource.data.status in ['open', 'in_progress', 'resolved'])
                              || isValidTicketEdit()
                              || isValidSolutionChange(ticketId)))
-                        || isCounterStep('repliesCount'));
+                        || isCounterStep('repliesCount')
+                        || isValidPinToggle());
 
       // Delete: the ticket author, or a moderator of its channel (creator or administrator)
       allow delete: if isAuthenticated()

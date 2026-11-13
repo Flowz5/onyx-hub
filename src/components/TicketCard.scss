@@ -308,3 +308,66 @@
   40% { box-shadow: 0 0 0 6px rgba(252, 163, 17, 0.25); }
   100% { box-shadow: 0 0 0 0 rgba(252, 163, 17, 0); }
 }
+
+// =====================================================================
+// ÉPINGLAGE PAR UN MODÉRATEUR DU CANAL
+// =====================================================================
+
+// Carte épinglée : liseré doré et fond légèrement teinté
+// (la bordure gauche conserve la couleur du statut)
+.ticket-card-item.is-pinned {
+  border-top-color: rgba(252, 163, 17, 0.45);
+  border-right-color: rgba(252, 163, 17, 0.45);
+  border-bottom-color: rgba(252, 163, 17, 0.45);
+  background: linear-gradient(160deg, rgba(252, 163, 17, 0.07) 0%, rgba(20, 33, 61, 0.6) 55%);
+}
+
+// Badge « Épinglé »
+.ticket-card-item .pinned-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 50px;
+  background: rgba(252, 163, 17, 0.14);
+  border: 1px solid rgba(252, 163, 17, 0.4);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: $color-orange;
+}
+
+// Bouton d'épinglage, aligné sur les boutons d'édition et de suppression
+.ticket-card-item .pin-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.08);
+    background: rgba(252, 163, 17, 0.15);
+    border-color: rgba(252, 163, 17, 0.5);
+    color: $color-orange;
+  }
+
+  // État épinglé : le clic désépingle
+  &.is-pinned {
+    background: rgba(252, 163, 17, 0.15);
+    border-color: rgba(252, 163, 17, 0.5);
+    color: $color-orange;
+
+    &:hover {
+      background: $color-orange;
+      border-color: $color-orange;
+      color: $color-black;
+    }
+  }
+}
