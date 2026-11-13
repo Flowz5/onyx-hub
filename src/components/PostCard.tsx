@@ -14,6 +14,8 @@ interface PostCardProps {
   onDelete?: (postId: string) => void;
   // Ouverture de la modale d'édition (auteur uniquement)
   onEdit?: (post: Post) => void;
+  // Modérateur du canal (créateur ou administrateur) : suppression des posts et commentaires
+  canModerate?: boolean;
   // Mise en avant depuis une notification : la carte défile à l'écran, avec son fil ouvert si besoin
   focus?: "card" | "thread" | null;
 }
@@ -25,9 +27,12 @@ export const PostCard: React.FC<PostCardProps> = ({
   onUpvote,
   onDelete,
   onEdit,
+  canModerate = false,
   focus = null,
 }) => {
-  const isAuthor = currentUserId && post.authorId === currentUserId;
+  const isAuthor = Boolean(currentUserId && post.authorId === currentUserId);
+  // Suppression ouverte à l'auteur et aux modérateurs du canal
+  const canDelete = isAuthor || canModerate;
   const isUpvoted = Boolean(currentUserId && post.upvotedBy.includes(currentUserId));
   // Affichage du fil de commentaires (chargé uniquement à l'ouverture)
   const [areCommentsOpen, setAreCommentsOpen] = useState(false);
@@ -59,7 +64,9 @@ export const PostCard: React.FC<PostCardProps> = ({
     e.stopPropagation();
     if (onDelete) {
       const confirmDelete = window.confirm(
-        `Voulez-vous supprimer ce post "${post.title}" ?`
+        isAuthor
+          ? `Voulez-vous supprimer ce post "${post.title}" ?`
+          : `Modération : supprimer le post "${post.title}" de ${post.authorName} ?`
       );
       if (confirmDelete) {
         onDelete(post.id);
@@ -134,10 +141,10 @@ export const PostCard: React.FC<PostCardProps> = ({
             <ChevronDown className="onyx-icon chevron" size={14} strokeWidth={2} aria-hidden="true" />
           </button>
 
-          {/* Actions réservées à l'auteur : modification et suppression */}
-          {isAuthor && (onEdit || onDelete) && (
+          {/* Actions : modification par l'auteur, suppression par l'auteur ou un modérateur */}
+          {((isAuthor && onEdit) || (canDelete && onDelete)) && (
             <div className="author-actions">
-              {onEdit && (
+              {isAuthor && onEdit && (
                 <button
                   type="button"
                   className="edit-post-btn"
@@ -151,13 +158,13 @@ export const PostCard: React.FC<PostCardProps> = ({
                   <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                 </button>
               )}
-              {onDelete && (
+              {canDelete && onDelete && (
                 <button
                   type="button"
                   className="delete-post-btn"
                   onClick={handleDeleteClick}
-                  title="Supprimer mon post"
-                  aria-label="Supprimer mon post"
+                  title={isAuthor ? "Supprimer mon post" : "Supprimer ce post (modération)"}
+                  aria-label={isAuthor ? "Supprimer mon post" : "Supprimer ce post (modération)"}
                 >
                   <Trash2 className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                 </button>
@@ -174,6 +181,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             parentAuthorId={post.authorId}
             parentTitle={post.title}
             channelId={post.channelId}
+            canModerate={canModerate}
           />
         )}
       </div>

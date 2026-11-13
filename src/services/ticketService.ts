@@ -18,6 +18,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { addProfileCounterStep } from "./profileService";
+import { addModeratedCounterStep } from "./moderationService";
 import { addMentionNotifications } from "./notificationService";
 import { cleanupAfterDeletion, deleteParentWithThread, deleteRemovedImages } from "./cleanupService";
 import type { MentionTarget } from "../types/mention";
@@ -140,21 +141,26 @@ export const setTicketSolution = async (
   await batch.commit();
 };
 
-// Suppression d'un ticket par son auteur avec ses réponses,
-// décrémentation des compteurs du canal et du profil, puis nettoyage
-// de ses images (et de celles de ses propres réponses) et des notifications qu'il a générées
-export const deleteTicketFromFirestore = async (ticket: Ticket, authorId: string): Promise<void> => {
+// Suppression d'un ticket par son auteur ou par un modérateur du canal, avec ses réponses,
+// décrémentation des compteurs du canal et du profil de l'auteur, puis nettoyage
+// de ses images (et de celles des réponses de l'auteur) et des notifications qu'il a générées
+export const deleteTicketFromFirestore = async (ticket: Ticket, deleterId: string): Promise<void> => {
+  const authorId = ticket.authorId;
   const deletedReplies = await deleteParentWithThread("tickets", "replies", ticket.id, async (batch) => {
     batch.update(doc(db, CHANNELS_COLLECTION, ticket.channelId), {
       ticketsCount: increment(-1),
     });
-    await addProfileCounterStep(batch, authorId, "ticketsCount", -1);
+    // Le compteur d'un autre étudiant n'est modifiable que par la voie de modération
+    if (deleterId === authorId) {
+      await addProfileCounterStep(batch, authorId, "ticketsCount", -1);
+    } else {
+      await addModeratedCounterStep(batch, authorId, "ticketsCount", ticket.id);
+    }
   });
-
   const ownContents = deletedReplies
     .filter((reply) => reply.authorId === authorId)
     .map((reply) => reply.content);
-  await cleanupAfterDeletion(authorId, ticket.id, [ticket.description, ...ownContents]);
+  await cleanupAfterDeletion(authorId, ticket.id, ticket.channelId, [ticket.description, ...ownContents]);
 };
 
 // Écoute en temps réel des tickets d'un canal

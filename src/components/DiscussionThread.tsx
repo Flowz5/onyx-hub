@@ -31,6 +31,8 @@ interface DiscussionThreadProps {
   solutionMessageId?: string | null;
   // Auteur crédité de la solution actuelle (pour le décréditer en cas de changement)
   solutionAuthorId?: string | null;
+  // Modérateur du canal (créateur ou administrateur) : suppression de tout message du fil
+  canModerate?: boolean;
 }
 
 // Libellés adaptés au type de fil
@@ -76,6 +78,7 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
   isResolved = false,
   solutionMessageId = null,
   solutionAuthorId = null,
+  canModerate = false,
 }) => {
   const { user } = useAuth();
   const labels = LABELS[kind];
@@ -178,11 +181,15 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
     }
   };
 
-  // Suppression d'un message par son auteur, après confirmation
+  // Suppression d'un message par son auteur ou par un modérateur, après confirmation
   const handleDelete = async (message: ThreadMessage) => {
-    if (!window.confirm(`Voulez-vous supprimer ce ${labels.noun} ?`)) return;
+    const isOwnMessage = user?.uid === message.authorId;
+    const confirmation = isOwnMessage
+      ? `Voulez-vous supprimer ce ${labels.noun} ?`
+      : `Modération : supprimer ce ${labels.noun} de ${message.authorName} ?`;
+    if (!window.confirm(confirmation)) return;
     try {
-      await deleteThreadMessage(kind, parentId, message);
+      await deleteThreadMessage(kind, parentId, channelId, message);
     } catch (error) {
       console.error("Erreur lors de la suppression du message :", error);
       setErrorMessage(`Impossible de supprimer ce ${labels.noun}.`);
@@ -238,14 +245,14 @@ export const DiscussionThread: React.FC<DiscussionThreadProps> = ({
                   )}
                   <span className="message-date">{formatDate(message.createdAt)}</span>
 
-                  {/* Suppression réservée à l'auteur du message */}
-                  {isMine && (
+                  {/* Suppression réservée à l'auteur du message et aux modérateurs du canal */}
+                  {(isMine || canModerate) && (
                     <button
                       type="button"
                       className="delete-message-btn"
                       onClick={() => handleDelete(message)}
-                      title={`Supprimer mon ${labels.noun}`}
-                      aria-label={`Supprimer mon ${labels.noun}`}
+                      title={isMine ? `Supprimer mon ${labels.noun}` : `Supprimer ce ${labels.noun} (modération)`}
+                      aria-label={isMine ? `Supprimer mon ${labels.noun}` : `Supprimer ce ${labels.noun} (modération)`}
                     >
                       <Trash2 className="onyx-icon" size={13} strokeWidth={2} aria-hidden="true" />
                     </button>
