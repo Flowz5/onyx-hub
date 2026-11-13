@@ -6,6 +6,7 @@ import { RichContent } from "./RichContent";
 import { ArrowBigUp, ChevronDown, MessageSquare, Pencil, Trash2 } from "lucide-react";
 import { DiscussionThread } from "./DiscussionThread";
 import { AuthorLink } from "./UserAvatar";
+import { WarnUserButton } from "./WarnUserButton";
 
 interface PostCardProps {
   post: Post;
@@ -142,7 +143,7 @@ export const PostCard: React.FC<PostCardProps> = ({
           </button>
 
           {/* Actions : modification par l'auteur, suppression par l'auteur ou un modérateur */}
-          {((isAuthor && onEdit) || (canDelete && onDelete)) && (
+          {((isAuthor && onEdit) || (canDelete && onDelete) || (canModerate && !isAuthor)) && (
             <div className="author-actions">
               {isAuthor && onEdit && (
                 <button
@@ -157,6 +158,21 @@ export const PostCard: React.FC<PostCardProps> = ({
                 >
                   <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                 </button>
+              )}
+              {/* Avertissement de l'auteur par un modérateur du canal */}
+              {canModerate && !isAuthor && (
+                <WarnUserButton
+                  target={{
+                    kind: "posts",
+                    parentId: post.id,
+                    parentTitle: post.title,
+                    channelId: post.channelId,
+                    messageId: null,
+                    recipientId: post.authorId,
+                  }}
+                  recipientName={post.authorName}
+                  contentLabel="son post"
+                />
               )}
               {canDelete && onDelete && (
                 <button

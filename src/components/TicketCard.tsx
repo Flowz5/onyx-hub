@@ -5,6 +5,7 @@ import "./TicketCard.scss";
 import { ChevronDown, MessageSquareReply, Pencil, Trash2 } from "lucide-react";
 import { DiscussionThread } from "./DiscussionThread";
 import { AuthorLink } from "./UserAvatar";
+import { WarnUserButton } from "./WarnUserButton";
 import { RichContent } from "./RichContent";
 
 interface TicketCardProps {
@@ -165,7 +166,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             )}
 
             {/* Actions : modification par l'auteur, suppression par l'auteur ou un modérateur */}
-            {((isAuthor && onEdit) || onDelete) && (
+            {((isAuthor && onEdit) || onDelete || (canModerate && !isAuthor)) && (
               <div className="author-actions">
                 {isAuthor && onEdit && (
                   <button
@@ -180,6 +181,21 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                   >
                     <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                   </button>
+                )}
+                {/* Avertissement de l'auteur par un modérateur du canal */}
+                {canModerate && !isAuthor && (
+                  <WarnUserButton
+                    target={{
+                      kind: "tickets",
+                      parentId: ticket.id,
+                      parentTitle: ticket.title,
+                      channelId: ticket.channelId,
+                      messageId: null,
+                      recipientId: ticket.authorId,
+                    }}
+                    recipientName={ticket.authorName}
+                    contentLabel="son ticket"
+                  />
                 )}
                 {onDelete && (
                   <button

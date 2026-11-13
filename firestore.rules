@@ -501,9 +501,10 @@ service cloud.firestore {
     // Domain Validator Functions: Notifications
     // -------------------------------------------------------------------------
 
-    // Common schema of a notification (reply, comment or mention).
+    // Common schema of a notification (reply, comment, mention or moderation warning).
     // messageId is null for a mention in the body of a post or ticket;
-    // recipientEmail is only set for a mention of an invited member of a private channel.
+    // recipientEmail is only set for a mention of an invited member of a private channel;
+    // reason is only set for a moderation warning.
     function isValidNotificationShape(data) {
       return data.keys().hasAll([
                'recipientId', 'actorId', 'actorName', 'type', 'parentId', 'messageId',
@@ -511,7 +512,7 @@ service cloud.firestore {
              ])
           && data.keys().hasOnly([
                'recipientId', 'actorId', 'actorName', 'type', 'parentId', 'messageId',
-               'parentTitle', 'channelId', 'createdAt', 'read', 'recipientEmail'
+               'parentTitle', 'channelId', 'createdAt', 'read', 'recipientEmail', 'reason'
              ])
           && isOwner(data.actorId)
           && data.recipientId is string && data.recipientId != request.auth.uid
@@ -577,14 +578,34 @@ service cloud.firestore {
               || (data.messageId is string && isValidMessageMention(data, parentCollection, subcollection)));
     }
 
+    // Avertissement envoyé par un modérateur du canal (créateur ou administrateur) à l'auteur
+    // d'un post, d'un ticket (messageId null) ou d'un message de leur fil, avec un motif obligatoire
+    function isValidWarningNotification(data, parentCollection, subcollection) {
+      let parent = get(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)).data;
+      return data.reason is string
+          && data.reason.size() > 0
+          && data.reason.size() <= 300
+          && !('recipientEmail' in data)
+          && parent.channelId == data.channelId
+          && parent.title == data.parentTitle
+          && canModerateChannel(data.channelId)
+          && ((data.messageId == null && data.recipientId == parent.authorId)
+              || (data.messageId is string
+                  && get(/databases/$(database)/documents/$(parentCollection)/$(data.parentId)/$(subcollection)/$(data.messageId)).data.authorId
+                     == data.recipientId));
+    }
+
     function isValidNewNotification(data) {
       return isValidNotificationShape(data)
-          && ((data.type == 'ticket_reply' && matchesThreadParent(data, 'tickets', 'replies'))
-              || (data.type == 'post_comment' && matchesThreadParent(data, 'posts', 'comments'))
-              || (data.type == 'post_mention'
-                  && isValidMentionNotification(data, 'posts', 'content', 'comments'))
-              || (data.type == 'ticket_mention'
-                  && isValidMentionNotification(data, 'tickets', 'description', 'replies')));
+          && ((data.type == 'post_warning' && isValidWarningNotification(data, 'posts', 'comments'))
+              || (data.type == 'ticket_warning' && isValidWarningNotification(data, 'tickets', 'replies'))
+              || (!('reason' in data)
+                  && ((data.type == 'ticket_reply' && matchesThreadParent(data, 'tickets', 'replies'))
+                      || (data.type == 'post_comment' && matchesThreadParent(data, 'posts', 'comments'))
+                      || (data.type == 'post_mention'
+                          && isValidMentionNotification(data, 'posts', 'content', 'comments'))
+                      || (data.type == 'ticket_mention'
+                          && isValidMentionNotification(data, 'tickets', 'description', 'replies')))));
     }
 
     // Validates the notification preferences and read state of a user
@@ -605,7 +626,7 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // Collection: notifications (Réponses à mes tickets et commentaires de mes posts)
+    // Collection: notifications (Réponses à mes tickets, commentaires de mes posts, mentions, avertissements)
     // -------------------------------------------------------------------------
     match /notifications/{notificationId} {
       // Read: the recipient (queries filter on recipientId), or the author of the action,

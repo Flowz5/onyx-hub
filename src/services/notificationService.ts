@@ -66,6 +66,8 @@ export interface ThreadNotification {
   read: boolean;
   // Message (réponse ou commentaire) concerné ; null pour une mention dans le corps d'un post ou d'un ticket
   messageId: string | null;
+  // Motif d'un avertissement de modération
+  reason?: string;
 }
 
 // Parent d'un message (ticket ou post) nécessaire à l'écriture d'une notification
@@ -131,9 +133,12 @@ export const newNotificationRef = () => doc(collection(db, NOTIFICATIONS_COLLECT
 
 const mapThreadNotification = (id: string, data: DocumentData): ThreadNotification => ({
   id,
-  type: ["post_comment", "post_mention", "ticket_mention"].includes(data.type)
+  type: ["post_comment", "post_mention", "ticket_mention", "post_warning", "ticket_warning"].includes(
+    data.type
+  )
     ? data.type
     : "ticket_reply",
+  ...(typeof data.reason === "string" ? { reason: data.reason } : {}),
   messageId: data.messageId ?? null,
   actorName: data.actorName || "Étudiant",
   parentId: data.parentId || "",
