@@ -12,6 +12,7 @@ import {
   deleteChannelFromFirestore,
   subscribeToChannels,
 } from "../services/channelService";
+import { isSuperAdmin } from "../services/moderationService";
 import "./ChannelsPage.scss";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
 import { Plus } from "lucide-react";
@@ -29,6 +30,8 @@ const DEFAULT_TAGS: string[] = [
 // Page principale affichant l'espace de gestion et de consultation des canaux
 export const ChannelsPage: React.FC = () => {
   const { user } = useAuth();
+  // Compte administrateur : accès aux canaux privés et suppression de tout canal
+  const isAdmin = isSuperAdmin(user);
   const navigate = useNavigate();
 
   // État local pour la requête de recherche textuelle globale
@@ -313,6 +316,7 @@ export const ChannelsPage: React.FC = () => {
                 onSelectChannel={handleSelectChannel}
                 onDeleteChannel={handleDeleteChannel}
                 onEditChannel={handleEditChannel}
+                isAdmin={isAdmin}
               />
             ))}
           </div>

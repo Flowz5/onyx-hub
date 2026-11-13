@@ -22,7 +22,7 @@ import {
 import type { Channel } from "../types/channel";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
-  type NotificationCategory,
+  type NotificationDisplayCategory,
   type NotificationItem,
   type NotificationPreferences,
   type NotificationSettings,
@@ -95,14 +95,21 @@ export const useNotifications = (user: User | null) => {
     const items: NotificationItem[] = [];
 
     threadNotifications.forEach((notification) => {
-      const category: NotificationCategory =
-        notification.type === "ticket_reply"
+      const isWarning =
+        notification.type === "post_warning" || notification.type === "ticket_warning";
+      const category: NotificationDisplayCategory = isWarning
+        ? "warnings"
+        : notification.type === "ticket_reply"
           ? "ticketReplies"
           : notification.type === "post_comment"
             ? "postComments"
             : "mentions";
-      if (!preferences[category]) return;
-      const isTicket = notification.type === "ticket_reply" || notification.type === "ticket_mention";
+      // Les avertissements de modération sont toujours affichés
+      if (category !== "warnings" && !preferences[category]) return;
+      const isTicket =
+        notification.type === "ticket_reply" ||
+        notification.type === "ticket_mention" ||
+        notification.type === "ticket_warning";
       items.push({
         key: `thread-${notification.id}`,
         source: "thread",
@@ -118,6 +125,7 @@ export const useNotifications = (user: User | null) => {
         openThread: notification.messageId !== null,
         createdAt: notification.createdAt,
         isRead: notification.read,
+        reason: notification.reason,
       });
     });
 

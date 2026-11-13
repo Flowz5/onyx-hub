@@ -30,8 +30,21 @@ export interface NotificationSettings {
 // Nombre maximal d'identifiants de posts lus conservés individuellement
 export const MAX_READ_POST_IDS = 50;
 
-// Type d'une notification écrite par l'auteur d'un message (document notifications/{id})
-export type ThreadNotificationType = "ticket_reply" | "post_comment" | "post_mention" | "ticket_mention";
+// Type d'une notification écrite par l'auteur d'un message (document notifications/{id}),
+// ou par un modérateur pour un avertissement visant un post, un ticket ou un message de leur fil
+export type ThreadNotificationType =
+  | "ticket_reply"
+  | "post_comment"
+  | "post_mention"
+  | "ticket_mention"
+  | "post_warning"
+  | "ticket_warning";
+
+// Catégorie affichée : les avertissements de modération ne sont pas désactivables
+export type NotificationDisplayCategory = NotificationCategory | "warnings";
+
+// Longueur maximale du motif d'un avertissement (identique à firestore.rules)
+export const MAX_WARNING_REASON_LENGTH = 300;
 
 // Élément affiché dans le centre de notifications
 export interface NotificationItem {
@@ -40,7 +53,7 @@ export interface NotificationItem {
   source: "thread" | "post";
   // Identifiant du document source : notification Firestore ou post
   sourceId: string;
-  category: NotificationCategory;
+  category: NotificationDisplayCategory;
   actorName: string;
   // Titre du post ou du ticket concerné
   title: string;
@@ -54,6 +67,8 @@ export interface NotificationItem {
   openThread: boolean;
   createdAt: string;
   isRead: boolean;
+  // Motif d'un avertissement de modération
+  reason?: string;
 }
 
 // État de navigation transmis à la page d'un canal à l'ouverture d'une notification

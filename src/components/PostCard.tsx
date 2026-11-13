@@ -3,9 +3,10 @@ import type { Post } from "../types/post";
 import "./PostCard.scss";
 import { RichContent } from "./RichContent";
 // Icônes vectorielles Lucide, alignées sur la charte Black & Gold
-import { ArrowBigUp, ChevronDown, MessageSquare, Pencil, Trash2 } from "lucide-react";
+import { ArrowBigUp, ChevronDown, MessageSquare, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 import { DiscussionThread } from "./DiscussionThread";
 import { AuthorLink } from "./UserAvatar";
+import { WarnUserButton } from "./WarnUserButton";
 
 interface PostCardProps {
   post: Post;
@@ -14,6 +15,10 @@ interface PostCardProps {
   onDelete?: (postId: string) => void;
   // Ouverture de la modale d'édition (auteur uniquement)
   onEdit?: (post: Post) => void;
+  // Modérateur du canal (créateur ou administrateur) : suppression des posts et commentaires
+  canModerate?: boolean;
+  // Épinglage (ou désépinglage) du post en tête du canal, réservé aux modérateurs
+  onTogglePin?: (postId: string, pinned: boolean) => void;
   // Mise en avant depuis une notification : la carte défile à l'écran, avec son fil ouvert si besoin
   focus?: "card" | "thread" | null;
 }
@@ -25,9 +30,14 @@ export const PostCard: React.FC<PostCardProps> = ({
   onUpvote,
   onDelete,
   onEdit,
+  canModerate = false,
+  onTogglePin,
   focus = null,
 }) => {
-  const isAuthor = currentUserId && post.authorId === currentUserId;
+  const isPinned = Boolean(post.pinnedAt);
+  const isAuthor = Boolean(currentUserId && post.authorId === currentUserId);
+  // Suppression ouverte à l'auteur et aux modérateurs du canal
+  const canDelete = isAuthor || canModerate;
   const isUpvoted = Boolean(currentUserId && post.upvotedBy.includes(currentUserId));
   // Affichage du fil de commentaires (chargé uniquement à l'ouverture)
   const [areCommentsOpen, setAreCommentsOpen] = useState(false);
@@ -59,7 +69,9 @@ export const PostCard: React.FC<PostCardProps> = ({
     e.stopPropagation();
     if (onDelete) {
       const confirmDelete = window.confirm(
-        `Voulez-vous supprimer ce post "${post.title}" ?`
+        isAuthor
+          ? `Voulez-vous supprimer ce post "${post.title}" ?`
+          : `Modération : supprimer le post "${post.title}" de ${post.authorName} ?`
       );
       if (confirmDelete) {
         onDelete(post.id);
@@ -68,7 +80,10 @@ export const PostCard: React.FC<PostCardProps> = ({
   };
 
   return (
-    <article ref={cardRef} className={`post-card-item ${focus ? "is-focused" : ""}`}>
+    <article
+      ref={cardRef}
+      className={`post-card-item ${focus ? "is-focused" : ""} ${isPinned ? "is-pinned" : ""}`}
+    >
       {/* Colonne de vote Reddit-like */}
       <div className="upvote-column">
         <button
@@ -95,6 +110,13 @@ export const PostCard: React.FC<PostCardProps> = ({
       <div className="post-content-area">
         {/* En-tête métadonnées */}
         <div className="post-meta-header">
+          {/* Badge d'un post épinglé par un modérateur */}
+          {isPinned && (
+            <span className="pinned-badge">
+              <Pin className="onyx-icon onyx-icon--leading" size={12} strokeWidth={2} aria-hidden="true" />
+              Épinglé
+            </span>
+          )}
           <span className="post-author">
             Posté par <AuthorLink uid={post.authorId} fallbackName={post.authorName} avatarSize={22} />
           </span>
@@ -134,10 +156,30 @@ export const PostCard: React.FC<PostCardProps> = ({
             <ChevronDown className="onyx-icon chevron" size={14} strokeWidth={2} aria-hidden="true" />
           </button>
 
-          {/* Actions réservées à l'auteur : modification et suppression */}
-          {isAuthor && (onEdit || onDelete) && (
+          {/* Actions : modification par l'auteur, suppression par l'auteur ou un modérateur */}
+          {((isAuthor && onEdit) || (canDelete && onDelete) || canModerate) && (
             <div className="author-actions">
-              {onEdit && (
+              {/* Épinglage en tête du canal, réservé aux modérateurs */}
+              {canModerate && onTogglePin && (
+                <button
+                  type="button"
+                  className={`pin-toggle-btn ${isPinned ? "is-pinned" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTogglePin(post.id, !isPinned);
+                  }}
+                  aria-pressed={isPinned}
+                  title={isPinned ? "Désépingler ce post" : "Épingler ce post en haut du canal"}
+                  aria-label={isPinned ? "Désépingler ce post" : "Épingler ce post en haut du canal"}
+                >
+                  {isPinned ? (
+                    <PinOff className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                  ) : (
+                    <Pin className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
+                  )}
+                </button>
+              )}
+              {isAuthor && onEdit && (
                 <button
                   type="button"
                   className="edit-post-btn"
@@ -151,13 +193,28 @@ export const PostCard: React.FC<PostCardProps> = ({
                   <Pencil className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                 </button>
               )}
-              {onDelete && (
+              {/* Avertissement de l'auteur par un modérateur du canal */}
+              {canModerate && !isAuthor && (
+                <WarnUserButton
+                  target={{
+                    kind: "posts",
+                    parentId: post.id,
+                    parentTitle: post.title,
+                    channelId: post.channelId,
+                    messageId: null,
+                    recipientId: post.authorId,
+                  }}
+                  recipientName={post.authorName}
+                  contentLabel="son post"
+                />
+              )}
+              {canDelete && onDelete && (
                 <button
                   type="button"
                   className="delete-post-btn"
                   onClick={handleDeleteClick}
-                  title="Supprimer mon post"
-                  aria-label="Supprimer mon post"
+                  title={isAuthor ? "Supprimer mon post" : "Supprimer ce post (modération)"}
+                  aria-label={isAuthor ? "Supprimer mon post" : "Supprimer ce post (modération)"}
                 >
                   <Trash2 className="onyx-icon" size={14} strokeWidth={2} aria-hidden="true" />
                 </button>
@@ -174,6 +231,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             parentAuthorId={post.authorId}
             parentTitle={post.title}
             channelId={post.channelId}
+            canModerate={canModerate}
           />
         )}
       </div>

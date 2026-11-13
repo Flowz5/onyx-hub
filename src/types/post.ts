@@ -15,6 +15,8 @@ export interface Post {
   upvotesCount: number;
   upvotedBy: string[];
   commentsCount: number;
+  // Date d'épinglage par un modérateur du canal (null si le post n'est pas épinglé)
+  pinnedAt: string | null;
 }
 
 // Données du formulaire de création d'un nouveau post

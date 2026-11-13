@@ -20,6 +20,7 @@ import {
 import { db } from "./firebase";
 import type { Post, NewPostFormData } from "../types/post";
 import { addProfileCounterStep } from "./profileService";
+import { addModeratedCounterStep } from "./moderationService";
 import { addMentionNotifications } from "./notificationService";
 import { cleanupAfterDeletion, deleteParentWithThread, deleteRemovedImages } from "./cleanupService";
 import type { MentionTarget } from "../types/mention";
@@ -88,21 +89,26 @@ export const updatePostInFirestore = async (
   );
 };
 
-// Suppression d'un post par son auteur avec ses commentaires,
-// décrémentation des compteurs du canal et du profil, puis nettoyage
-// de ses images (et de celles de ses propres commentaires) et des notifications qu'il a générées
-export const deletePostFromFirestore = async (post: Post, authorId: string): Promise<void> => {
+// Suppression d'un post par son auteur ou par un modérateur du canal, avec ses commentaires,
+// décrémentation des compteurs du canal et du profil de l'auteur, puis nettoyage
+// de ses images (et de celles des commentaires de l'auteur) et des notifications qu'il a générées
+export const deletePostFromFirestore = async (post: Post, deleterId: string): Promise<void> => {
+  const authorId = post.authorId;
   const deletedComments = await deleteParentWithThread("posts", "comments", post.id, async (batch) => {
     batch.update(doc(db, CHANNELS_COLLECTION, post.channelId), {
       postsCount: increment(-1),
     });
-    await addProfileCounterStep(batch, authorId, "postsCount", -1);
+    // Le compteur d'un autre étudiant n'est modifiable que par la voie de modération
+    if (deleterId === authorId) {
+      await addProfileCounterStep(batch, authorId, "postsCount", -1);
+    } else {
+      await addModeratedCounterStep(batch, authorId, "postsCount", post.id);
+    }
   });
-
   const ownContents = deletedComments
     .filter((comment) => comment.authorId === authorId)
     .map((comment) => comment.content);
-  await cleanupAfterDeletion(authorId, post.id, [post.content, ...ownContents]);
+  await cleanupAfterDeletion(authorId, post.id, post.channelId, [post.content, ...ownContents]);
 };
 
 // Bascule du vote positif (upvote) d'un étudiant sur un post
@@ -145,7 +151,7 @@ export const subscribeToChannelPosts = (
     postsQuery,
     (snapshot) => {
       const posts: Post[] = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
+        const data = docSnap.data({ serverTimestamps: "estimate" });
         return {
           id: docSnap.id,
           channelId: data.channelId || channelId,
@@ -160,6 +166,7 @@ export const subscribeToChannelPosts = (
           upvotesCount: data.upvotesCount || 0,
           upvotedBy: data.upvotedBy || [],
           commentsCount: data.commentsCount || 0,
+          pinnedAt: data.pinnedAt?.toDate ? data.pinnedAt.toDate().toISOString() : null,
         };
       });
       onPostsUpdate(posts);
@@ -172,7 +179,7 @@ export const subscribeToChannelPosts = (
         fallbackQuery,
         (fallbackSnap) => {
           const fallbackPosts: Post[] = fallbackSnap.docs.map((docSnap) => {
-            const data = docSnap.data();
+            const data = docSnap.data({ serverTimestamps: "estimate" });
             return {
               id: docSnap.id,
               channelId: data.channelId || channelId,
@@ -187,6 +194,7 @@ export const subscribeToChannelPosts = (
               upvotesCount: data.upvotesCount || 0,
               upvotedBy: data.upvotedBy || [],
               commentsCount: data.commentsCount || 0,
+              pinnedAt: data.pinnedAt?.toDate ? data.pinnedAt.toDate().toISOString() : null,
             };
           });
           // Tri côté client
