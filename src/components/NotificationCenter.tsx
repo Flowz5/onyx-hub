@@ -12,6 +12,7 @@ import {
   MessageSquareReply,
   Newspaper,
   Settings,
+  ShieldAlert,
   Trash2,
   X,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNotifications } from "../hooks/useNotifications";
 import type {
   NotificationCategory,
+  NotificationDisplayCategory,
   NotificationFocus,
   NotificationItem,
   NotificationPreferences,
@@ -49,19 +51,21 @@ const CATEGORY_OPTIONS: { category: NotificationCategory; label: string; descrip
 ];
 
 // Icône associée à chaque catégorie
-const CATEGORY_ICONS: Record<NotificationCategory, typeof Bell> = {
+const CATEGORY_ICONS: Record<NotificationDisplayCategory, typeof Bell> = {
   newPosts: Newspaper,
   ticketReplies: MessageSquareReply,
   postComments: MessageSquare,
   mentions: AtSign,
+  warnings: ShieldAlert,
 };
 
 // Phrase décrivant l'action à l'origine de la notification
-const ACTION_LABELS: Record<NotificationCategory, string> = {
+const ACTION_LABELS: Record<NotificationDisplayCategory, string> = {
   newPosts: "a publié",
   ticketReplies: "a répondu à votre ticket",
   postComments: "a commenté votre post",
   mentions: "vous a mentionné dans",
+  warnings: "vous a adressé un avertissement de modération concernant",
 };
 
 // Date relative en français (« il y a 5 minutes »)
@@ -135,7 +139,9 @@ export const NotificationCenter: React.FC = () => {
       targetId: item.targetId,
       tab: item.targetTab,
       openThread: item.openThread,
-      notificationId: item.source === "thread" ? item.sourceId : undefined,
+      // Un avertissement est conservé même si le contenu visé a été supprimé entre-temps
+      notificationId:
+        item.source === "thread" && item.category !== "warnings" ? item.sourceId : undefined,
     };
     setIsOpen(false);
     navigate(`/channels/${item.channelId}`, { state: { notificationFocus } });
@@ -315,6 +321,10 @@ export const NotificationCenter: React.FC = () => {
                               <strong>{item.actorName}</strong> {ACTION_LABELS[item.category]}{" "}
                               <em>« {item.title} »</em>
                             </span>
+                            {/* Motif d'un avertissement de modération */}
+                            {item.reason && (
+                              <span className="notification-reason">Motif : {item.reason}</span>
+                            )}
                             <span className="notification-meta">
                               {item.channelName && <>#{item.channelName} · </>}
                               {formatRelativeDate(item.createdAt)}

@@ -34,6 +34,7 @@ import { AppTopbar } from "../components/AppTopbar";
 import { MentionProvider, useChannelMentionCandidates } from "../context/MentionContext";
 import { resolveMentionTargets } from "../types/mention";
 import { deleteReceivedNotification } from "../services/notificationService";
+import { canModerateChannel, setContentPinned, sortPinnedFirst } from "../services/moderationService";
 
 // Page principale dédiée à la consultation intérieure d'un canal (Posts & Tickets)
 export const ChannelDetailPage: React.FC = () => {
@@ -85,6 +86,8 @@ export const ChannelDetailPage: React.FC = () => {
   // Le canal est accessible une fois chargé ; sinon il est inexistant ou réservé à ses membres
   const hasChannelAccess = Boolean(channel);
   const isChannelOwner = Boolean(channel && user && channel.creatorId === user.uid);
+  // Modération du canal : son créateur et le compte administrateur
+  const isModerator = canModerateChannel(channel, user);
 
   // 1. Chargement des informations du canal
   useEffect(() => {
@@ -200,16 +203,17 @@ export const ChannelDetailPage: React.FC = () => {
     });
 
     if (postSort === "popular") {
-      return list.sort((a, b) => b.upvotesCount - a.upvotesCount);
+      list.sort((a, b) => b.upvotesCount - a.upvotesCount);
+    } else {
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
-    return list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    // Les posts épinglés par un modérateur restent en tête, quel que soit le tri
+    return sortPinnedFirst(list);
   }, [posts, searchQuery, selectedTag, postSort]);
 
-  // Filtrage des tickets
+  // Filtrage des tickets, les tickets épinglés restant en tête
   const filteredTickets = useMemo(() => {
-    return tickets.filter((ticket) => {
+    const list = tickets.filter((ticket) => {
       const matchesSearch =
         ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -220,6 +224,7 @@ export const ChannelDetailPage: React.FC = () => {
         selectedTag === "Tous" || ticket.tags.includes(selectedTag);
       return matchesSearch && matchesStatus && matchesTag;
     });
+    return sortPinnedFirst(list);
   }, [tickets, searchQuery, ticketStatusFilter, selectedTag]);
 
   // Valeurs initiales des modales en mode édition (références stables)
@@ -323,6 +328,16 @@ export const ChannelDetailPage: React.FC = () => {
       await togglePostUpvote(postId, user.uid, isCurrentlyUpvoted);
     } catch (err) {
       console.error("Erreur de vote sur le post :", err);
+    }
+  };
+
+  // Épinglage d'un post ou d'un ticket par un modérateur du canal
+  const handleTogglePin = async (kind: "posts" | "tickets", contentId: string, pinned: boolean) => {
+    try {
+      await setContentPinned(kind, contentId, pinned);
+    } catch (err) {
+      console.error("Erreur d'épinglage :", err);
+      alert(pinned ? "Impossible d'épingler cet élément." : "Impossible de désépingler cet élément.");
     }
   };
 
@@ -524,6 +539,8 @@ export const ChannelDetailPage: React.FC = () => {
                       key={post.id}
                       post={post}
                       currentUserId={user?.uid}
+                      canModerate={isModerator}
+                      onTogglePin={(postId, pinned) => handleTogglePin("posts", postId, pinned)}
                       onUpvote={handleUpvotePost}
                       onDelete={handleDeletePost}
                       onEdit={handleEditPost}
@@ -561,6 +578,8 @@ export const ChannelDetailPage: React.FC = () => {
                       key={ticket.id}
                       ticket={ticket}
                       currentUserId={user?.uid}
+                      canModerate={isModerator}
+                      onTogglePin={(ticketId, pinned) => handleTogglePin("tickets", ticketId, pinned)}
                       onUpdateStatus={handleUpdateTicketStatus}
                       onDelete={handleDeleteTicket}
                       onEdit={handleEditTicket}

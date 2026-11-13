@@ -20,6 +20,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { normalizeEmail, type Channel, type NewChannelFormData } from "../types/channel";
+import { isSuperAdmin } from "./moderationService";
 
 // Nom de la collection Firestore
 const CHANNELS_COLLECTION = "channels";
@@ -100,7 +101,7 @@ export const updateChannelMembers = async (
   });
 };
 
-// Suppression d'un canal dans Firestore
+// Suppression d'un canal dans Firestore (créateur ou administrateur)
 export const deleteChannelFromFirestore = async (
   channelId: string
 ): Promise<void> => {
@@ -127,7 +128,8 @@ export const getChannelById = async (
 
 // Écoute en temps réel des canaux accessibles à l'utilisateur connecté.
 // Les règles Firestore n'étant pas des filtres, trois requêtes distinctes sont combinées :
-// canaux publics, canaux créés par l'utilisateur et canaux privés où il est invité.
+// canaux publics, canaux créés par l'utilisateur et canaux privés où il est invité
+// (tous les canaux privés pour le compte administrateur).
 export const subscribeToChannels = (
   user: { uid: string; email?: string | null },
   onChannelsUpdate: (channels: Channel[]) => void,
@@ -143,6 +145,10 @@ export const subscribeToChannels = (
     sources.push(
       query(channelsRef, where("memberEmails", "array-contains", normalizeEmail(user.email)))
     );
+  }
+  // Contrôle administrateur : l'ensemble des canaux privés est visible
+  if (isSuperAdmin(user)) {
+    sources.push(query(channelsRef, where("visibility", "==", "private")));
   }
 
   // Résultats courants de chaque requête, fusionnés à chaque mise à jour
