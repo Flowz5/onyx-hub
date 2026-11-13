@@ -151,7 +151,7 @@ export const subscribeToChannelPosts = (
     postsQuery,
     (snapshot) => {
       const posts: Post[] = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
+        const data = docSnap.data({ serverTimestamps: "estimate" });
         return {
           id: docSnap.id,
           channelId: data.channelId || channelId,
@@ -166,6 +166,7 @@ export const subscribeToChannelPosts = (
           upvotesCount: data.upvotesCount || 0,
           upvotedBy: data.upvotedBy || [],
           commentsCount: data.commentsCount || 0,
+          pinnedAt: data.pinnedAt?.toDate ? data.pinnedAt.toDate().toISOString() : null,
         };
       });
       onPostsUpdate(posts);
@@ -178,7 +179,7 @@ export const subscribeToChannelPosts = (
         fallbackQuery,
         (fallbackSnap) => {
           const fallbackPosts: Post[] = fallbackSnap.docs.map((docSnap) => {
-            const data = docSnap.data();
+            const data = docSnap.data({ serverTimestamps: "estimate" });
             return {
               id: docSnap.id,
               channelId: data.channelId || channelId,
@@ -193,6 +194,7 @@ export const subscribeToChannelPosts = (
               upvotesCount: data.upvotesCount || 0,
               upvotedBy: data.upvotedBy || [],
               commentsCount: data.commentsCount || 0,
+              pinnedAt: data.pinnedAt?.toDate ? data.pinnedAt.toDate().toISOString() : null,
             };
           });
           // Tri côté client

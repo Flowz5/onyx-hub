@@ -5,7 +5,15 @@
 // Ces vérifications ne servent qu'à l'affichage : les règles Firestore
 // (isSuperAdmin, isChannelModerator) restent la seule garantie de sécurité.
 // =====================================================================
-import { doc, getDoc, increment, serverTimestamp, setDoc, type WriteBatch } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  increment,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  type WriteBatch,
+} from "firebase/firestore";
 import { db } from "./firebase";
 import { newNotificationRef } from "./notificationService";
 import { normalizeEmail, type Channel } from "../types/channel";
@@ -78,3 +86,25 @@ export const sendModerationWarning = async (
     reason: trimmedReason,
   });
 };
+
+// Épinglage (ou désépinglage) d'un post ou d'un ticket en tête du flux de son canal.
+// L'horodatage serveur ordonne les éléments épinglés, du plus récent au plus ancien.
+export const setContentPinned = async (
+  kind: "posts" | "tickets",
+  contentId: string,
+  pinned: boolean
+): Promise<void> => {
+  await updateDoc(doc(db, kind, contentId), {
+    pinnedAt: pinned ? serverTimestamp() : null,
+  });
+};
+
+// Tri plaçant les éléments épinglés en tête (épinglage le plus récent d'abord),
+// l'ordre existant étant conservé pour les autres éléments (tri stable)
+export const sortPinnedFirst = <T extends { pinnedAt: string | null }>(items: T[]): T[] =>
+  [...items].sort((a, b) => {
+    if (a.pinnedAt && b.pinnedAt) return new Date(b.pinnedAt).getTime() - new Date(a.pinnedAt).getTime();
+    if (a.pinnedAt) return -1;
+    if (b.pinnedAt) return 1;
+    return 0;
+  });

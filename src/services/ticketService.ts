@@ -183,7 +183,7 @@ export const subscribeToChannelTickets = (
     ticketsQuery,
     (snapshot) => {
       const tickets: Ticket[] = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
+        const data = docSnap.data({ serverTimestamps: "estimate" });
         return {
           id: docSnap.id,
           channelId: data.channelId || channelId,
@@ -200,6 +200,7 @@ export const subscribeToChannelTickets = (
           repliesCount: data.repliesCount || 0,
           solutionReplyId: data.solutionReplyId ?? null,
           solutionAuthorId: data.solutionAuthorId ?? null,
+          pinnedAt: data.pinnedAt?.toDate ? data.pinnedAt.toDate().toISOString() : null,
         };
       });
       onTicketsUpdate(tickets);
@@ -212,7 +213,7 @@ export const subscribeToChannelTickets = (
         fallbackQuery,
         (fallbackSnap) => {
           const fallbackTickets: Ticket[] = fallbackSnap.docs.map((docSnap) => {
-            const data = docSnap.data();
+            const data = docSnap.data({ serverTimestamps: "estimate" });
             return {
               id: docSnap.id,
               channelId: data.channelId || channelId,
@@ -229,6 +230,7 @@ export const subscribeToChannelTickets = (
               repliesCount: data.repliesCount || 0,
           solutionReplyId: data.solutionReplyId ?? null,
           solutionAuthorId: data.solutionAuthorId ?? null,
+          pinnedAt: data.pinnedAt?.toDate ? data.pinnedAt.toDate().toISOString() : null,
             };
           });
           // Tri côté client
