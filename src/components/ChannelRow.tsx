@@ -13,6 +13,8 @@ interface ChannelRowProps {
   onDeleteChannel?: (channelId: string) => void;
   // Ouverture de la modale d'édition (créateur uniquement)
   onEditChannel?: (channel: Channel) => void;
+  // Compte administrateur : suppression de tout canal
+  isAdmin?: boolean;
 }
 
 // Composant représentant un canal sous forme de ligne horizontale interactive
@@ -23,6 +25,7 @@ export const ChannelRow: React.FC<ChannelRowProps> = ({
   onSelectChannel,
   onDeleteChannel,
   onEditChannel,
+  isAdmin = false,
 }) => {
   // Vérification de la propriété du canal par l'utilisateur connecté
   const isOwner =
@@ -108,8 +111,8 @@ export const ChannelRow: React.FC<ChannelRowProps> = ({
           </button>
         )}
 
-        {/* Bouton de suppression réservé au créateur du canal */}
-        {isOwner && onDeleteChannel && (
+        {/* Bouton de suppression réservé au créateur du canal et à l'administrateur */}
+        {(isOwner || isAdmin) && onDeleteChannel && (
           <button
             type="button"
             className="delete-channel-btn"
